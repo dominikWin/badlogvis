@@ -60,7 +60,7 @@ fn main() {
     let output = opt.output.unwrap_or(format!("{}.html", input));
 
     let contents: String = {
-        let mut f = File::open(input).expect("file not found");
+        let mut f = File::open(input.clone()).expect("file not found");
         let mut contents = String::new();
         f.read_to_string(&mut contents).unwrap();
         contents
@@ -85,11 +85,7 @@ fn main() {
 
     let graphs = gen_graphs(p, rdr);
 
-    println!("{:?}", graphs);
-
-    graphs.iter().for_each(|g| println!("{}", g.gen_highchart()));
-
-    let out = gen_html();
+    let out = gen_html(&input, &graphs);
 
     let mut outfile = File::create(output).unwrap();
     outfile.write_all(out.as_bytes()).unwrap();
@@ -189,32 +185,53 @@ impl Graph {
     }
 }
 
-fn gen_html() -> String {
+fn gen_html(input: &str, graphs: &Vec<Graph>) -> String {
+    let bootstrap_css_source = include_str!("web_res/bootstrap.min.css");
+    let jquery_js_source = include_str!("web_res/jquery-3.2.1.min.js");
+    let highcharts_js_source = include_str!("web_res/highcharts.js");
+
+    let mut content = String::new();
+
+    for graph in graphs {
+        content += graph.gen_highchart().as_ref();
+    }
+
     format!("\
 <!DOCTYPE html>
 <html lang=\"en\">
   <head>
     <meta charset=\"utf-8\">
     <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
-    <title>Grid Template for Bootstrap</title>
+    <title>BadLog - {title}</title>
 
-    <!-- Bootstrap core CSS -->
-    <link href=\"bootstrap.min.css\" rel=\"stylesheet\">
+    <!-- bootstrap.min.css -->
+    <style type=\"text/css\">
+        {bootstrap_css}
+    </style>
 
-    <script src=\"highcharts.js\"></script>
-    <script src=\"jquery-3.2.1.min.js\"></script>
+    <!-- jquery-3.2.1.min.js -->
+    <script>
+        {jquery_js}
+    </script>
+
+    <!-- highcharts.js -->
+    <script>
+        {highcharts_js}
+    </script>
 
   </head>
 
   <body>
     <div class=\"container\">
       <div class=\"page-header\">
-        <h1>Logname</h1>
+        <h1>{title}</h1>
         <p class=\"lead\">Basic grid layouts to get you familiar with building within the Bootstrap grid system.</p>
       </div>
+
+      {content}
     </div> <!-- /container -->
   </body>
 </html>
 \
-    ")
+    ", title = input, bootstrap_css = bootstrap_css_source, jquery_js = jquery_js_source, highcharts_js = highcharts_js_source, content = content)
 }
