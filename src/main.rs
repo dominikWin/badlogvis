@@ -55,6 +55,21 @@ struct Graph {
     pub data: Vec<(f64, f64)>,
 }
 
+#[derive(Debug)]
+struct SortedValue {
+    pub name: String,
+    pub name_base: String,
+    pub name_folder: String,
+    pub value: String,
+}
+
+#[derive(Debug)]
+enum OutputObject {
+    Graph(Graph),
+    Table(Vec<SortedValue>),
+    Header(String),
+}
+
 fn main() {
     let opt: Opt = Opt::from_args();
 
@@ -85,9 +100,9 @@ fn main() {
 
     let rdr = csv::Reader::from_reader(tempfile);
 
-    let graphs = gen_graphs(p, rdr);
+    let objects = gen_objects(p, rdr);
 
-    let out = gen_html(&input, &graphs);
+    let out = gen_html(&input, objects);
 
     let mut outfile = File::create(output).unwrap();
     outfile.write_all(out.as_bytes()).unwrap();
@@ -108,43 +123,116 @@ fn split_name(name: &str) -> (String, String) {
     (folder, base)
 }
 
-fn gen_graphs(json_header: JSONHeader, mut csv_reader: csv::Reader<File>) -> Vec<Graph> {
-    let mut out: Vec<Graph> = Vec::new();
+fn gen_objects(json_header: JSONHeader, mut csv_reader: csv::Reader<File>) -> Vec<OutputObject> {
+    let graphs = {
+        let mut graphs: Vec<Graph> = Vec::new();
 
-    for topic in json_header.topics {
-        let (folder, base) = split_name(&topic.name);
-        let mut graph = Graph {
-            name: topic.name,
-            name_base: base,
-            name_folder: folder,
-            unit: topic.unit,
-            attrs: topic.attrs,
-            data: Vec::new(),
-        };
-        out.push(graph);
-    }
-
-    let header = {
-        csv_reader.headers().unwrap().clone()
-    };
-
-    let mut step = 0;
-    for row in csv_reader.records() {
-        let row = row.unwrap();
-        assert_eq!(row.len(), header.len());
-
-        for i in 0..header.len() {
-            let (k, v) = (&header[i], &row[i]);
-
-            assert_eq!(out.iter().filter(|g| g.name.eq(k)).count(), 1);
-            let graph = out.iter_mut().filter(|g| g.name.eq(k)).last().unwrap();
-            graph.data.push(((step as f64), v.to_string().parse::<f64>().unwrap()));
+        for topic in json_header.topics {
+            let (folder, base) = split_name(&topic.name);
+            let mut graph = Graph {
+                name: topic.name,
+                name_base: base,
+                name_folder: folder,
+                unit: topic.unit,
+                attrs: topic.attrs,
+                data: Vec::new(),
+            };
+            graphs.push(graph);
         }
 
-        step += 1;
+        let header = {
+            csv_reader.headers().unwrap().clone()
+        };
+
+        let mut step: i32 = 0;
+        for row in csv_reader.records() {
+            let row = row.unwrap();
+            assert_eq!(row.len(), header.len());
+
+            for i in 0..header.len() {
+                let (k, v) = (&header[i], &row[i]);
+
+                assert_eq!(graphs.iter().filter(|g| g.name.eq(k)).count(), 1);
+                let graph = graphs.iter_mut().filter(|g| g.name.eq(k)).last().unwrap();
+                graph.data.push(((step as f64), v.to_string().parse::<f64>().unwrap()));
+            }
+
+            step += 1;
+        }
+
+        graphs
+    };
+
+    let values = {
+        let mut values = Vec::new();
+
+        for value in json_header.values {
+            let (folder, base) = split_name(&value.name);
+            values.push(SortedValue {
+                name: value.name,
+                name_base: base,
+                name_folder: folder,
+                value: value.value
+            });
+        }
+
+        values
+    };
+
+    struct Folder {
+        name: String,
+        table: Vec<SortedValue>,
+        graphs: Vec<Graph>
     }
 
-    out
+    let mut folders: Vec<Folder> = Vec::new();
+
+    'outer_graph: for graph in graphs {
+        for folder in folders.iter_mut() {
+            if folder.name.eq(&graph.name_folder) {
+                folder.graphs.push(graph);
+                continue 'outer_graph;
+            }
+        }
+        folders.push(Folder {
+            name: graph.name_folder.clone(),
+            table: Vec::new(),
+            graphs: vec![graph]
+        });
+    }
+
+    'outer_value: for value in values {
+        for folder in folders.iter_mut() {
+            if folder.name.eq(&value.name_folder) {
+                folder.table.push(value);
+                continue 'outer_value;
+            }
+        }
+        folders.push(Folder {
+            name: value.name_folder.clone(),
+            table: vec![value],
+            graphs: Vec::new()
+        });
+    }
+
+    for folder in folders.iter_mut() {
+        folder.table.sort_by(|a,b| a.name_base.cmp(&b.name_base));
+        folder.graphs.sort_by(|a,b| a.name_base.cmp(&b.name_base))
+    }
+
+    folders.sort_by(|a,b| a.name.cmp(&b.name));
+
+    let mut output_objs: Vec<OutputObject> = Vec::new();
+
+    for folder in folders {
+        output_objs.push(OutputObject::Header(folder.name));
+        output_objs.push(OutputObject::Table(folder.table));
+        for graph in folder.graphs {
+            output_objs.push(OutputObject::Graph(graph));
+        }
+    }
+
+    output_objs
 }
 
 impl Graph {
@@ -193,7 +281,18 @@ impl Graph {
     }
 }
 
-fn gen_html(input: &str, graphs: &Vec<Graph>) -> String {
+fn gen_table(values: &Vec<SortedValue>) -> String {
+    if values.len() == 0 {
+        return "<!-- Empty table omitted -->\n".to_string();
+    }
+    let mut rows = String::new();
+    for value in values.iter() {
+        rows += &format!("<tr><td>{name}</td><td>{value}</td></tr>\n", name = value.name_base, value = value.value);
+    }
+    format!("<table class=\"table table-striped\"><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody>\n{rows}</tbody></table>\n", rows = rows)
+}
+
+fn gen_html(input: &str, objs: Vec<OutputObject>) -> String {
     let bootstrap_css_source = include_str!("web_res/bootstrap.min.css");
     let jquery_js_source = include_str!("web_res/jquery-3.2.1.min.js");
     let highcharts_js_source = include_str!("web_res/highcharts.js");
@@ -201,8 +300,20 @@ fn gen_html(input: &str, graphs: &Vec<Graph>) -> String {
 
     let mut content = String::new();
 
-    for graph in graphs {
-        content += graph.gen_highchart().as_ref();
+    for obj in objs {
+        match obj {
+            OutputObject::Header(text) => {
+                if text.len() > 0 {
+                    content += &format!("<h2>{}/</h2>\n", &text);
+                }
+            }
+            OutputObject::Graph(graph) => {
+                content += &graph.gen_highchart();
+            }
+            OutputObject::Table(values) => {
+                content += &gen_table(&values);
+            }
+        }
     }
 
     format!("\
