@@ -7,6 +7,7 @@ extern crate serde_json;
 extern crate serde_derive;
 extern crate tempfile;
 extern crate csv;
+extern crate base64;
 
 use std::fs::File;
 use std::io::prelude::*;
@@ -67,7 +68,7 @@ struct SortedValue {
 struct Folder {
     pub name: String,
     pub table: Vec<SortedValue>,
-    pub graphs: Vec<Graph>
+    pub graphs: Vec<Graph>,
 }
 
 fn main() {
@@ -102,7 +103,7 @@ fn main() {
 
     let folders: Vec<Folder> = gen_folders(p, rdr);
 
-    let out = gen_html(&input, folders);
+    let out = gen_html(&input, folders, &csv_data);
 
     let mut outfile = File::create(output).unwrap();
     outfile.write_all(out.as_bytes()).unwrap();
@@ -172,7 +173,7 @@ fn gen_folders(json_header: JSONHeader, mut csv_reader: csv::Reader<File>) -> Ve
                 name: value.name,
                 name_base: base,
                 name_folder: folder,
-                value: value.value
+                value: value.value,
             });
         }
 
@@ -191,7 +192,7 @@ fn gen_folders(json_header: JSONHeader, mut csv_reader: csv::Reader<File>) -> Ve
         folders.push(Folder {
             name: graph.name_folder.clone(),
             table: Vec::new(),
-            graphs: vec![graph]
+            graphs: vec![graph],
         });
     }
 
@@ -205,16 +206,16 @@ fn gen_folders(json_header: JSONHeader, mut csv_reader: csv::Reader<File>) -> Ve
         folders.push(Folder {
             name: value.name_folder.clone(),
             table: vec![value],
-            graphs: Vec::new()
+            graphs: Vec::new(),
         });
     }
 
     for folder in folders.iter_mut() {
-        folder.table.sort_by(|a,b| a.name_base.cmp(&b.name_base));
-        folder.graphs.sort_by(|a,b| a.name_base.cmp(&b.name_base))
+        folder.table.sort_by(|a, b| a.name_base.cmp(&b.name_base));
+        folder.graphs.sort_by(|a, b| a.name_base.cmp(&b.name_base))
     }
 
-    folders.sort_by(|a,b| a.name.cmp(&b.name));
+    folders.sort_by(|a, b| a.name.cmp(&b.name));
 
     folders
 }
@@ -307,12 +308,15 @@ fn gen_table(values: &Vec<SortedValue>) -> String {
     format!("<table class=\"table table-striped\"><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody>\n{rows}</tbody></table>\n", rows = rows)
 }
 
-fn gen_html(input: &str, folders: Vec<Folder>) -> String {
+fn gen_html(input: &str, folders: Vec<Folder>, csv_raw: &str) -> String {
     let bootstrap_css_source = include_str!("web_res/bootstrap.min.css");
     let jquery_js_source = include_str!("web_res/jquery-3.2.1.min.js");
     let bootstrap_js_source = include_str!("web_res/bootstrap.min.js");
     let highcharts_js_source = include_str!("web_res/highcharts.js");
     let highcharts_boost_js_source = include_str!("web_res/boost.js");
+
+    let csv_base64 = base64::encode(csv_raw);
+    let csv_filename = format!("{}.csv", input);
 
     let mut content = String::new();
 
@@ -358,8 +362,7 @@ fn gen_html(input: &str, folders: Vec<Folder>) -> String {
   <body>
     <div class=\"container\">
       <div class=\"page-header\">
-        <h1>{title}</h1>
-        <p class=\"lead\">Basic grid layouts to get you familiar with building within the Bootstrap grid system.</p>
+        <h1>{title} <a href=\"data:text/csv;base64,{csv_base64}\" download=\"{csv_filename}\" class=\"btn btn-default btn-md\">Download CSV</a></h1>
       </div>
 
       {content}
@@ -367,5 +370,7 @@ fn gen_html(input: &str, folders: Vec<Folder>) -> String {
   </body>
 </html>
 \
-    ", title = input, bootstrap_css = bootstrap_css_source, jquery_js = jquery_js_source, bootstrap_js = bootstrap_js_source, highcharts_js = highcharts_js_source, boost_js = highcharts_boost_js_source, content = content)
+    ", title = input, bootstrap_css = bootstrap_css_source, jquery_js = jquery_js_source, bootstrap_js = bootstrap_js_source,
+            highcharts_js = highcharts_js_source, boost_js = highcharts_boost_js_source, content = content,
+            csv_base64 = csv_base64, csv_filename = csv_filename)
 }
