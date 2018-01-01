@@ -64,10 +64,10 @@ struct SortedValue {
 }
 
 #[derive(Debug)]
-enum OutputObject {
-    Graph(Graph),
-    Table(Vec<SortedValue>),
-    Header(String),
+struct Folder {
+    pub name: String,
+    pub table: Vec<SortedValue>,
+    pub graphs: Vec<Graph>
 }
 
 fn main() {
@@ -100,9 +100,9 @@ fn main() {
 
     let rdr = csv::Reader::from_reader(tempfile);
 
-    let objects = gen_objects(p, rdr);
+    let folders: Vec<Folder> = gen_folders(p, rdr);
 
-    let out = gen_html(&input, objects);
+    let out = gen_html(&input, folders);
 
     let mut outfile = File::create(output).unwrap();
     outfile.write_all(out.as_bytes()).unwrap();
@@ -123,7 +123,7 @@ fn split_name(name: &str) -> (String, String) {
     (folder, base)
 }
 
-fn gen_objects(json_header: JSONHeader, mut csv_reader: csv::Reader<File>) -> Vec<OutputObject> {
+fn gen_folders(json_header: JSONHeader, mut csv_reader: csv::Reader<File>) -> Vec<Folder> {
     let graphs = {
         let mut graphs: Vec<Graph> = Vec::new();
 
@@ -179,12 +179,6 @@ fn gen_objects(json_header: JSONHeader, mut csv_reader: csv::Reader<File>) -> Ve
         values
     };
 
-    struct Folder {
-        name: String,
-        table: Vec<SortedValue>,
-        graphs: Vec<Graph>
-    }
-
     let mut folders: Vec<Folder> = Vec::new();
 
     'outer_graph: for graph in graphs {
@@ -222,17 +216,7 @@ fn gen_objects(json_header: JSONHeader, mut csv_reader: csv::Reader<File>) -> Ve
 
     folders.sort_by(|a,b| a.name.cmp(&b.name));
 
-    let mut output_objs: Vec<OutputObject> = Vec::new();
-
-    for folder in folders {
-        output_objs.push(OutputObject::Header(folder.name));
-        output_objs.push(OutputObject::Table(folder.table));
-        for graph in folder.graphs {
-            output_objs.push(OutputObject::Graph(graph));
-        }
-    }
-
-    output_objs
+    folders
 }
 
 impl Graph {
@@ -281,6 +265,37 @@ impl Graph {
     }
 }
 
+impl Folder {
+    pub fn gen_html(&self) -> String {
+        let table = gen_table(&self.table);
+        let mut graph_content = String::new();
+        for graph in self.graphs.iter() {
+            graph_content += &graph.gen_highchart();
+        }
+
+        if self.name.len() == 0 {
+            return format!("{table}\n{graphs}", table = table, graphs = graph_content);
+        }
+
+        format!("\
+  <div class=\"panel-group\">
+    <div class=\"panel panel-default\">
+      <div class=\"panel-heading\">
+        <h4 class=\"panel-title\">
+          <a data-toggle=\"collapse\" href=\"#collapse_{name}\">{name}</a>
+        </h4>
+      </div>
+      <div id=\"collapse_{name}\" class=\"panel-collapse collapse\">
+        <div class=\"panel-body\">
+          {table}
+          {graphs}
+        </div>
+      </div>
+    </div>
+  </div>", name = self.name, table = table, graphs = graph_content)
+    }
+}
+
 fn gen_table(values: &Vec<SortedValue>) -> String {
     if values.len() == 0 {
         return "<!-- Empty table omitted -->\n".to_string();
@@ -292,28 +307,17 @@ fn gen_table(values: &Vec<SortedValue>) -> String {
     format!("<table class=\"table table-striped\"><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody>\n{rows}</tbody></table>\n", rows = rows)
 }
 
-fn gen_html(input: &str, objs: Vec<OutputObject>) -> String {
+fn gen_html(input: &str, folders: Vec<Folder>) -> String {
     let bootstrap_css_source = include_str!("web_res/bootstrap.min.css");
     let jquery_js_source = include_str!("web_res/jquery-3.2.1.min.js");
+    let bootstrap_js_source = include_str!("web_res/bootstrap.min.js");
     let highcharts_js_source = include_str!("web_res/highcharts.js");
     let highcharts_boost_js_source = include_str!("web_res/boost.js");
 
     let mut content = String::new();
 
-    for obj in objs {
-        match obj {
-            OutputObject::Header(text) => {
-                if text.len() > 0 {
-                    content += &format!("<h2>{}/</h2>\n", &text);
-                }
-            }
-            OutputObject::Graph(graph) => {
-                content += &graph.gen_highchart();
-            }
-            OutputObject::Table(values) => {
-                content += &gen_table(&values);
-            }
-        }
+    for folder in folders {
+        content += &folder.gen_html();
     }
 
     format!("\
@@ -332,6 +336,11 @@ fn gen_html(input: &str, objs: Vec<OutputObject>) -> String {
     <!-- jquery-3.2.1.min.js -->
     <script>
         {jquery_js}
+    </script>
+
+    <!-- bootstrap.min.js -->
+    <script>
+        {bootstrap_js}
     </script>
 
     <!-- highcharts.js -->
@@ -358,5 +367,5 @@ fn gen_html(input: &str, objs: Vec<OutputObject>) -> String {
   </body>
 </html>
 \
-    ", title = input, bootstrap_css = bootstrap_css_source, jquery_js = jquery_js_source, highcharts_js = highcharts_js_source, boost_js = highcharts_boost_js_source, content = content)
+    ", title = input, bootstrap_css = bootstrap_css_source, jquery_js = jquery_js_source, bootstrap_js = bootstrap_js_source, highcharts_js = highcharts_js_source, boost_js = highcharts_boost_js_source, content = content)
 }
