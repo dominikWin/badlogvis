@@ -320,6 +320,8 @@ fn gen_html(input: &str, folders: Vec<Folder>, csv_raw: &str) -> String {
     let bootstrap_js_source = include_str!("web_res/bootstrap.min.js");
     let highcharts_js_source = include_str!("web_res/highcharts.js");
     let highcharts_boost_js_source = include_str!("web_res/boost.js");
+    let highcharts_exporting_js_source = include_str!("web_res/exporting.js");
+    let highcharts_offline_exporting_source = include_str!("web_res/offline-exporting.js");
 
     let csv_base64 = base64::encode(csv_raw);
     let csv_filename = format!("{}.csv", input);
@@ -363,6 +365,16 @@ fn gen_html(input: &str, folders: Vec<Folder>, csv_raw: &str) -> String {
         {boost_js}
     </script>
 
+    <!-- exporting.js -->
+    <script>
+        {exporting_js}
+    </script>
+
+    <!-- offline-exporting.js -->
+    <script>
+        {offline_exporting_js}
+    </script>
+
     <!-- For syncronizing chart zooms -->
     <script>
         function syncExtremes(e) {{
@@ -395,5 +407,6 @@ fn gen_html(input: &str, folders: Vec<Folder>, csv_raw: &str) -> String {
 \
     ", title = input, bootstrap_css = bootstrap_css_source, jquery_js = jquery_js_source, bootstrap_js = bootstrap_js_source,
             highcharts_js = highcharts_js_source, boost_js = highcharts_boost_js_source, content = content,
-            csv_base64 = csv_base64, csv_filename = csv_filename)
+            csv_base64 = csv_base64, csv_filename = csv_filename, exporting_js = highcharts_exporting_js_source,
+            offline_exporting_js = highcharts_offline_exporting_source)
 }
