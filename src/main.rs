@@ -14,6 +14,8 @@ use std::io::SeekFrom;
 
 use structopt::StructOpt;
 
+use std::cmp::Ordering::Equal;
+
 #[derive(StructOpt, Debug)]
 #[structopt(name = "badlogvis", about = "Create html from badlog data")]
 struct Opt {
@@ -157,6 +159,14 @@ impl Graph {
                 [a, b.to_string()].join(",")
             }
         });
+
+        let min_y = self.data.iter().map(|p| {
+            let (_, y) = *p;
+            y
+        }).min_by(|a, b| a.partial_cmp(b).unwrap_or(Equal)).unwrap();
+
+        let min_y = if min_y < 0f64 { min_y } else { 0f64 };
+
         format!("\
 <div id=\"{name}\" style=\"min-width: 310px; height: 400px; margin: 0 auto\"></div>
 <script>
@@ -165,15 +175,13 @@ impl Graph {
             type: 'line'
         }},
         title: {{
-            text: '{title}'
+            text: '{title} ({unit})'
         }},
         subtitle: {{
             text: '{name}'
         }},
         yAxis: {{
-            title: {{
-                text: '{unit}'
-            }}
+            min: {min_y}
         }},
         series: [{{
             //name: '{title}',
@@ -181,7 +189,7 @@ impl Graph {
         }}]
     }});
 </script>\
-", name = self.name, unit = self.unit, title = self.name_base, data = data)
+", name = self.name, unit = self.unit, title = self.name_base, data = data, min_y = min_y)
     }
 }
 
