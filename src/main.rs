@@ -57,6 +57,7 @@ fn main() {
     let opt: Opt = Opt::from_args();
 
     let input = opt.input;
+    let output = opt.output.unwrap_or(format!("{}.html", input));
 
     let contents: String = {
         let mut f = File::open(input).expect("file not found");
@@ -87,6 +88,11 @@ fn main() {
     println!("{:?}", graphs);
 
     graphs.iter().for_each(|g| println!("{}", g.gen_highchart()));
+
+    let out = gen_html();
+
+    let mut outfile = File::create(output).unwrap();
+    outfile.write_all(out.as_bytes()).unwrap();
 }
 
 fn split_name(name: &str) -> (String, String) {
@@ -181,4 +187,34 @@ impl Graph {
 </script>\
 ", name = self.name, unit = self.unit, title = self.name_base, data = data)
     }
+}
+
+fn gen_html() -> String {
+    format!("\
+<!DOCTYPE html>
+<html lang=\"en\">
+  <head>
+    <meta charset=\"utf-8\">
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+    <title>Grid Template for Bootstrap</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href=\"bootstrap.min.css\" rel=\"stylesheet\">
+
+    <script src=\"highcharts.js\"></script>
+    <script src=\"jquery-3.2.1.min.js\"></script>
+
+  </head>
+
+  <body>
+    <div class=\"container\">
+      <div class=\"page-header\">
+        <h1>Logname</h1>
+        <p class=\"lead\">Basic grid layouts to get you familiar with building within the Bootstrap grid system.</p>
+      </div>
+    </div> <!-- /container -->
+  </body>
+</html>
+\
+    ")
 }
