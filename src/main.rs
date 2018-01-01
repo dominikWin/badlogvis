@@ -245,7 +245,8 @@ impl Graph {
 <script>
     Highcharts.chart('{name}', {{
         chart: {{
-            type: 'line'
+            type: 'line',
+            zoomType: 'x'
         }},
         title: {{
             text: '{title} ({unit})'
@@ -255,6 +256,11 @@ impl Graph {
         }},
         yAxis: {{
             min: {min_y}
+        }},
+        xAxis: {{
+            events: {{
+                setExtremes: syncExtremes
+            }}
         }},
         series: [{{
             //name: '{title}',
@@ -355,6 +361,23 @@ fn gen_html(input: &str, folders: Vec<Folder>, csv_raw: &str) -> String {
     <!-- boost.js -->
     <script>
         {boost_js}
+    </script>
+
+    <!-- For syncronizing chart zooms -->
+    <script>
+        function syncExtremes(e) {{
+            var thisChart = this.chart;
+
+            if (e.trigger !== 'syncExtremes') {{ // Prevent feedback loop
+                Highcharts.each(Highcharts.charts, function (chart) {{
+                    if (chart !== thisChart) {{
+                        if (chart.xAxis[0].setExtremes) {{ // It is null while updating
+                            chart.xAxis[0].setExtremes(e.min, e.max, undefined, false, {{ trigger: 'syncExtremes' }});
+                        }}
+                    }}
+                }});
+            }}
+        }}
     </script>
 
   </head>
