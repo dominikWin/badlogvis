@@ -197,6 +197,7 @@ fn gen_html(input: &str, graphs: &Vec<Graph>) -> String {
     let bootstrap_css_source = include_str!("web_res/bootstrap.min.css");
     let jquery_js_source = include_str!("web_res/jquery-3.2.1.min.js");
     let highcharts_js_source = include_str!("web_res/highcharts.js");
+    let highcharts_boost_js_source = include_str!("web_res/boost.js");
 
     let mut content = String::new();
 
@@ -227,6 +228,11 @@ fn gen_html(input: &str, graphs: &Vec<Graph>) -> String {
         {highcharts_js}
     </script>
 
+    <!-- boost.js -->
+    <script>
+        {boost_js}
+    </script>
+
   </head>
 
   <body>
@@ -241,5 +247,5 @@ fn gen_html(input: &str, graphs: &Vec<Graph>) -> String {
   </body>
 </html>
 \
-    ", title = input, bootstrap_css = bootstrap_css_source, jquery_js = jquery_js_source, highcharts_js = highcharts_js_source, content = content)
+    ", title = input, bootstrap_css = bootstrap_css_source, jquery_js = jquery_js_source, highcharts_js = highcharts_js_source, boost_js = highcharts_boost_js_source, content = content)
 }
