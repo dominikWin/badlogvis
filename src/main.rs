@@ -28,27 +28,29 @@ struct Opt {
 struct Topic {
     name: String,
     unit: String,
-    attrs: Vec<String>
+    attrs: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Value {
     name: String,
-    value: String
+    value: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 struct JSONHeader {
     topics: Vec<Topic>,
-    values: Vec<Value>
+    values: Vec<Value>,
 }
 
 #[derive(Debug)]
 struct Graph {
     pub name: String,
+    pub name_base: String,
+    pub name_folder: String,
     pub unit: String,
     pub attrs: Vec<String>,
-    pub data: Vec<(f64, f64)>
+    pub data: Vec<(f64, f64)>,
 }
 
 fn main() {
@@ -68,13 +70,11 @@ fn main() {
         if a.len() == 0 {
             b.to_string()
         } else {
-            [a,b.to_string()].join("\n")
+            [a, b.to_string()].join("\n")
         }
     });
 
     let p: JSONHeader = serde_json::from_str(&json_header).unwrap();
-
-    println!("{:?}", p);
 
     let mut tempfile = tempfile::tempfile().unwrap();
     tempfile.write(csv_data.as_bytes()).unwrap();
@@ -85,17 +85,37 @@ fn main() {
     let graphs = gen_graphs(p, rdr);
 
     println!("{:?}", graphs);
+
+    graphs.iter().for_each(|g| println!("{}", g.gen_highchart()));
+}
+
+fn split_name(name: &str) -> (String, String) {
+    let mut parts: Vec<&str> = name.split("/").collect();
+
+    assert!(parts.len() > 0);
+
+    if parts.len() == 1 {
+        return ("".to_string(), parts[0].to_string());
+    }
+
+    let base = parts.pop().unwrap().to_string();
+    let folder = parts.join("/");
+
+    (folder, base)
 }
 
 fn gen_graphs(json_header: JSONHeader, mut csv_reader: csv::Reader<File>) -> Vec<Graph> {
     let mut out: Vec<Graph> = Vec::new();
 
     for topic in json_header.topics {
+        let (folder, base) = split_name(&topic.name);
         let mut graph = Graph {
             name: topic.name,
+            name_base: base,
+            name_folder: folder,
             unit: topic.unit,
             attrs: topic.attrs,
-            data: Vec::new()
+            data: Vec::new(),
         };
         out.push(graph);
     }
@@ -121,4 +141,44 @@ fn gen_graphs(json_header: JSONHeader, mut csv_reader: csv::Reader<File>) -> Vec
     }
 
     out
+}
+
+impl Graph {
+    pub fn gen_highchart(&self) -> String {
+        let data: String = self.data.iter().map(|p| {
+            let (x, y) = *p;
+            format!("[{},{}]", x, y)
+        }).fold("".to_string(), |a, b| {
+            if a.len() == 0 {
+                b.to_string()
+            } else {
+                [a, b.to_string()].join(",")
+            }
+        });
+        format!("\
+<div id=\"{name}\" style=\"min-width: 310px; height: 400px; margin: 0 auto\"></div>
+<script>
+    Highcharts.chart('{name}', {{
+        chart: {{
+            type: 'line'
+        }},
+        title: {{
+            text: '{title}'
+        }},
+        subtitle: {{
+            text: '{name}'
+        }},
+        yAxis: {{
+            title: {{
+                text: '{unit}'
+            }}
+        }},
+        series: [{{
+            //name: '{title}',
+            data: [{data}]
+        }}]
+    }});
+</script>\
+", name = self.name, unit = self.unit, title = self.name_base, data = data)
+    }
 }
