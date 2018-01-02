@@ -263,6 +263,9 @@ impl Graph {
                 setExtremes: syncExtremes
             }}
         }},
+        credits: {{
+            enabled: false
+        }},
         series: [{{
             //name: '{title}',
             data: [{data}]
