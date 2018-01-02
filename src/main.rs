@@ -155,7 +155,8 @@ fn gen_folders(json_header: JSONHeader, mut csv_reader: csv::Reader<File>) -> Ve
 
                 assert_eq!(graphs.iter().filter(|g| g.name.eq(k)).count(), 1);
                 let graph = graphs.iter_mut().filter(|g| g.name.eq(k)).last().unwrap();
-                graph.data.push(((step as f64), v.to_string().parse::<f64>().unwrap()));
+                let datapoint = v.to_string().parse::<f64>().expect(&format!("Failed to parse f64 : {:?} on line {}", v, step));
+                graph.data.push(((step as f64), datapoint));
             }
 
             step += 1;
