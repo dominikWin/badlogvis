@@ -211,11 +211,11 @@ fn gen_folders(json_header: JSONHeader, mut csv_reader: csv::Reader<File>) -> Ve
     }
 
     for folder in folders.iter_mut() {
-        folder.table.sort_by(|a, b| a.name_base.cmp(&b.name_base));
-        folder.graphs.sort_by(|a, b| a.name_base.cmp(&b.name_base))
+        folder.table.sort_by(|a, b| a.name_base.to_ascii_lowercase().cmp(&(b.name_base.to_ascii_lowercase())));
+        folder.graphs.sort_by(|a, b| a.name_base.to_ascii_lowercase().cmp(&b.name_base.to_ascii_lowercase()));
     }
 
-    folders.sort_by(|a, b| a.name.cmp(&b.name));
+    folders.sort_by(|a, b| a.name.to_ascii_lowercase().cmp(&b.name.to_ascii_lowercase()));
 
     folders
 }
