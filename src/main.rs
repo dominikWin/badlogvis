@@ -8,6 +8,7 @@ extern crate serde_derive;
 extern crate tempfile;
 extern crate csv;
 extern crate base64;
+extern crate colored;
 
 use std::fs::File;
 use std::io::prelude::*;
@@ -16,6 +17,8 @@ use std::io::SeekFrom;
 use structopt::StructOpt;
 
 use std::cmp::Ordering::Equal;
+
+use colored::*;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "badlogvis", about = "Create html from badlog data")]
@@ -80,7 +83,7 @@ fn main() {
     let contents: String = {
         let mut f = File::open(input.clone());
         if f.is_err() {
-            println!("Error opening file {}: {}", input, f.unwrap_err().to_string());
+            println!("{} Error opening file \"{}\": {}", "error:".bold().red(), input, f.unwrap_err().to_string());
             std::process::exit(1);
         }
         let mut f = f.unwrap();
