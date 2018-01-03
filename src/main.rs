@@ -78,7 +78,12 @@ fn main() {
     let output = opt.output.unwrap_or(format!("{}.html", input));
 
     let contents: String = {
-        let mut f = File::open(input.clone()).expect("file not found");
+        let mut f = File::open(input.clone());
+        if f.is_err() {
+            println!("Error opening file {}: {}", input, f.unwrap_err().to_string());
+            std::process::exit(1);
+        }
+        let mut f = f.unwrap();
         let mut contents = String::new();
         f.read_to_string(&mut contents).unwrap();
         contents
