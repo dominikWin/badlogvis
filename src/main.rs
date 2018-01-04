@@ -75,6 +75,8 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
             continue;
         }
 
+        let area = topic.attrs.contains(&Attribute::Area);
+
         let data = util::fake_x_axis(topic.data);
         graphs.push(Graph {
             name: topic.name.clone(),
@@ -82,6 +84,7 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
             name_folder: topic.name_folder,
             unit: topic.unit.clone(),
             data,
+            area,
         });
     }
     graphs

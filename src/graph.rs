@@ -7,6 +7,7 @@ pub struct Graph {
     pub name_folder: String,
     pub unit: Option<String>,
     pub data: Vec<(f64, f64)>,
+    pub area: bool,
 }
 
 impl Graph {
@@ -34,12 +35,14 @@ impl Graph {
             &Some(ref unit) => format!(" ({})", unit)
         };
 
+        let graph_type = if self.area { "area" } else { "line" };
+
         format!("\
 <div id=\"{name}\" style=\"min-width: 310px; height: 400px; margin: 0 auto\"></div>
 <script>
     Highcharts.chart('{name}', {{
         chart: {{
-            type: 'line',
+            type: '{graph_type}',
             zoomType: 'x'
         }},
         title: {{
@@ -65,6 +68,6 @@ impl Graph {
         }}]
     }});
 </script>\
-", name = self.name, unit = unit, title = self.name_base, data = data, min_y = min_y)
+", name = self.name, unit = unit, title = self.name_base, graph_type = graph_type, data = data, min_y = min_y)
     }
 }
