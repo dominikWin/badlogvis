@@ -73,7 +73,7 @@ struct Graph {
     pub name: String,
     pub name_base: String,
     pub name_folder: String,
-    pub unit: String,
+    pub unit: Option<String>,
     pub attrs: Vec<String>,
     pub data: Vec<(f64, f64)>,
 }
@@ -180,11 +180,16 @@ fn gen_folders(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
                         error!("Duplicate topic entry in JSON header for {}", &topic.name);
                     }
                     let (folder, base) = split_name(&topic.name);
+                    let unit = if topic.unit.len() == 0 || topic.unit.eq(UNITLESS) {
+                        Option::None
+                    } else {
+                        Option::Some(topic.unit.clone())
+                    };
                     let mut graph = Graph {
                         name: topic.name.clone(),
                         name_base: base,
                         name_folder: folder,
-                        unit: topic.unit.clone(),
+                        unit,
                         attrs: topic.attrs.clone(),
                         data: Vec::new(),
                     };
@@ -200,10 +205,10 @@ fn gen_folders(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
                     }
                     let (folder, base) = split_name(&name);
                     let mut graph = Graph {
-                        name: name,
+                        name,
                         name_base: base,
                         name_folder: folder,
-                        unit: UNITLESS.to_string(),
+                        unit: Option::None,
                         attrs: Vec::new(),
                         data: Vec::new(),
                     };
@@ -336,6 +341,11 @@ impl Graph {
 
         let min_y = if min_y < 0f64 { min_y } else { 0f64 };
 
+        let unit = match &self.unit {
+            &None => "".to_string(),
+            &Some(ref unit) => format!(" ({})", unit)
+        };
+
         format!("\
 <div id=\"{name}\" style=\"min-width: 310px; height: 400px; margin: 0 auto\"></div>
 <script>
@@ -345,7 +355,7 @@ impl Graph {
             zoomType: 'x'
         }},
         title: {{
-            text: '{title} ({unit})'
+            text: '{title}{unit}'
         }},
         subtitle: {{
             text: '{name}'
@@ -367,7 +377,7 @@ impl Graph {
         }}]
     }});
 </script>\
-", name = self.name, unit = self.unit, title = self.name_base, data = data, min_y = min_y)
+", name = self.name, unit = unit, title = self.name_base, data = data, min_y = min_y)
     }
 }
 
