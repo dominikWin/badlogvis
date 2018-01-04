@@ -128,6 +128,7 @@ pub fn parse_input(input: &str, opt: &Opt) -> (Vec<Topic>, Vec<Value>, String) {
                                 warning!("Failed to parse attribute {}, skipping it", attr_text);
                                 continue;
                             }
+                            attrs.push(attr.unwrap());
                         }
                         attrs
                     };

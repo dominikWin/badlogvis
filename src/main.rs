@@ -21,6 +21,7 @@ use std::io::prelude::*;
 
 use structopt::StructOpt;
 
+use attribute::Attribute;
 use graph::Graph;
 use input::*;
 
@@ -70,6 +71,10 @@ fn main() {
 fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
     let mut graphs = Vec::new();
     for topic in topics {
+        if topic.attrs.contains(&Attribute::Hide) {
+            continue;
+        }
+
         let data = util::fake_x_axis(topic.data);
         graphs.push(Graph {
             name: topic.name.clone(),
