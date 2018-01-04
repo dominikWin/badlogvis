@@ -7,29 +7,52 @@ pub struct Graph {
     pub name_folder: String,
     pub unit: Option<String>,
     pub x_unit: String,
-    pub data: Vec<(f64, f64)>,
+    pub data: Vec<Series>,
     pub area: bool,
+}
+
+#[derive(Debug)]
+pub struct Series {
+    pub name: Option<String>,
+    pub data: Vec<(f64, f64)>,
 }
 
 impl Graph {
     pub fn gen_highchart(&self) -> String {
-        let data: String = self.data.iter().map(|p| {
-            let (x, y) = *p;
-            format!("[{},{}]", x, y)
-        }).fold("".to_string(), |a, b| {
-            if a.len() == 0 {
-                b.to_string()
+        let mut series_content = String::new();
+        let mut min_y = 0f64;
+        for s in self.data.iter() {
+            let data: String = s.data.iter().map(|p| {
+                let (x, y) = *p;
+                format!("[{},{}]", x, y)
+            }).fold("".to_string(), |a, b| {
+                if a.len() == 0 {
+                    b.to_string()
+                } else {
+                    [a, b.to_string()].join(",")
+                }
+            });
+            let name = if let Some(name) = s.name.clone() {
+                format!("name: '{}',", name)
             } else {
-                [a, b.to_string()].join(",")
+                "".to_string()
+            };
+            let series_text = format!("{{
+                {name}
+                data: [{data}]
+            }},", name = name, data = data);
+
+            series_content += &series_text;
+
+            let min_y_local = s.data.iter().map(|p| {
+                let (_, y) = *p;
+                y
+            }).min_by(|a, b| a.partial_cmp(b).unwrap_or(Equal)).unwrap();
+
+            if min_y_local < min_y {
+                min_y = min_y_local;
             }
-        });
-
-        let min_y = self.data.iter().map(|p| {
-            let (_, y) = *p;
-            y
-        }).min_by(|a, b| a.partial_cmp(b).unwrap_or(Equal)).unwrap();
-
-        let min_y = if min_y < 0f64 { min_y } else { 0f64 };
+        }
 
         let unit = match &self.unit {
             &None => "".to_string(),
@@ -66,12 +89,9 @@ impl Graph {
         credits: {{
             enabled: false
         }},
-        series: [{{
-            //name: '{title}',
-            data: [{data}]
-        }}]
+        series: [{series_content}]
     }});
 </script>\
-", name = self.name, unit = unit, title = self.name_base, graph_type = graph_type, data = data, min_y = min_y, x_unit = self.x_unit)
+", name = self.name, unit = unit, title = self.name_base, graph_type = graph_type, min_y = min_y, x_unit = self.x_unit, series_content = series_content)
     }
 }

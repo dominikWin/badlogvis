@@ -22,7 +22,7 @@ use std::io::prelude::*;
 use structopt::StructOpt;
 
 use attribute::Attribute;
-use graph::Graph;
+use graph::{Graph, Series};
 use input::*;
 
 use colored::*;
@@ -110,13 +110,18 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
         else {
             (util::fake_x_axis(topic.data.clone()), "Index".to_string())
         };
+
+        let series: Series = Series {
+            name: Option::None,
+            data,
+        };
         graphs.push(Graph {
             name: topic.name.clone(),
             name_base: topic.name_base.clone(),
             name_folder: topic.name_folder.clone(),
             unit: topic.unit.clone(),
             x_unit,
-            data,
+            data: vec![series],
             area,
         });
     }
