@@ -1,3 +1,23 @@
+macro_rules! error {
+    ($fmt:expr) => {
+        println!(concat!("{}: ", $fmt), "error".bold().red());
+        std::process::exit(1);
+    };
+    ($fmt:expr, $($arg:tt)*) => {
+        println!(concat!("{}: ", $fmt), "error".bold().red(), $($arg)*);
+        std::process::exit(1);
+    };
+}
+
+macro_rules! warning {
+    ($fmt:expr) => {
+        println!(concat!("{}: ", $fmt), "warning".bold().yellow());
+    };
+    ($fmt:expr, $($arg:tt)*) => {
+        println!(concat!("{}: ", $fmt), "warning".bold().yellow(), $($arg)*);
+    };
+}
+
 pub fn split_name(name: &str) -> (String, String) {
     let mut parts: Vec<&str> = name.split("/").collect();
 
