@@ -20,6 +20,8 @@ use std::cmp::Ordering::Equal;
 
 use colored::*;
 
+const UNITLESS: &str = "ul";
+
 macro_rules! error {
     ($fmt:expr) => {
         println!(concat!("{}: ", $fmt), "error".bold().red());
@@ -42,6 +44,9 @@ struct Opt {
 
     #[structopt(short = "t", long = "trim-doubles", help = "Retry parsing doubles without whitespace")]
     trim_doubles: bool,
+
+    #[structopt(short = "c", long = "csv", help = "Input is CSV file")]
+    csv: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -88,13 +93,18 @@ struct Folder {
     pub graphs: Vec<Graph>,
 }
 
+enum ParseMode {
+    Bag(JSONHeader),
+    Csv,
+}
+
 fn main() {
     let opt: Opt = Opt::from_args();
 
     let input = opt.input;
     let output = opt.output.unwrap_or(format!("{}.html", input));
 
-    let contents: String = {
+    let input_file_contents: String = {
         let mut f = File::open(input.clone());
         if f.is_err() {
             error!("Failed to open file \"{}\": {}", input, f.unwrap_err().to_string());
@@ -105,30 +115,36 @@ fn main() {
         contents
     };
 
-    let json_header_text = contents.lines().take(1).last().unwrap().to_string();
-    let csv_data = contents.lines().skip(1).fold("".to_string(), |a, b| {
-        if a.len() == 0 {
-            b.to_string()
-        } else {
-            [a, b.to_string()].join("\n")
-        }
-    });
+    let (parse_mode, csv_text) = if opt.csv {
+        (ParseMode::Csv, input_file_contents)
+    } else {
+        let csv_text =
+            input_file_contents.lines().skip(1).fold("".to_string(), |a, b| {
+                if a.len() == 0 {
+                    b.to_string()
+                } else {
+                    [a, b.to_string()].join("\n")
+                }
+            });
 
-    let json_header = serde_json::from_str(&json_header_text);
-    if json_header.is_err() {
-        error!("Failed to parse json header: {}", json_header.unwrap_err().to_string());
-    }
-    let json_header = json_header.unwrap();
+        let json_header_text = input_file_contents.lines().take(1).last().unwrap().to_string(); // First line
+        let json_header = serde_json::from_str(&json_header_text);
+        if json_header.is_err() {
+            error!("Failed to parse json header: {} (if its a CSV file use --csv)", json_header.unwrap_err().to_string());
+        }
+        let json_header = json_header.unwrap();
+        (ParseMode::Bag(json_header), csv_text)
+    };
 
     let mut tempfile = tempfile::tempfile().unwrap();
-    tempfile.write(csv_data.as_bytes()).unwrap();
+    tempfile.write(csv_text.as_bytes()).unwrap();
     tempfile.seek(SeekFrom::Start(0)).unwrap();
 
     let rdr = csv::Reader::from_reader(tempfile);
 
-    let folders: Vec<Folder> = gen_folders(json_header, rdr, opt.trim_doubles);
+    let folders: Vec<Folder> = gen_folders(parse_mode, rdr, opt.trim_doubles);
 
-    let out = gen_html(&input, folders, &csv_data);
+    let out = gen_html(&input, folders, &csv_text);
 
     let mut outfile = File::create(output).unwrap();
     outfile.write_all(out.as_bytes()).unwrap();
@@ -149,29 +165,52 @@ fn split_name(name: &str) -> (String, String) {
     (folder, base)
 }
 
-fn gen_folders(json_header: JSONHeader, mut csv_reader: csv::Reader<File>, trim_doubles: bool) -> Vec<Folder> {
+fn gen_folders(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_doubles: bool) -> Vec<Folder> {
     let graphs = {
         let mut graphs: Vec<Graph> = Vec::new();
-
-        for topic in json_header.topics {
-            if graphs.iter().filter(|g| g.name.eq(&topic.name)).count() > 0 {
-                error!("Duplicate topic entry in JSON header for {}", &topic.name);
-            }
-            let (folder, base) = split_name(&topic.name);
-            let mut graph = Graph {
-                name: topic.name,
-                name_base: base,
-                name_folder: folder,
-                unit: topic.unit,
-                attrs: topic.attrs,
-                data: Vec::new(),
-            };
-            graphs.push(graph);
-        }
 
         let header = {
             csv_reader.headers().unwrap().clone()
         };
+
+        match &parse_mode {
+            &ParseMode::Bag(ref json_header) => {
+                for topic in json_header.topics.iter() {
+                    if graphs.iter().filter(|g| g.name.eq(&topic.name)).count() > 0 {
+                        error!("Duplicate topic entry in JSON header for {}", &topic.name);
+                    }
+                    let (folder, base) = split_name(&topic.name);
+                    let mut graph = Graph {
+                        name: topic.name.clone(),
+                        name_base: base,
+                        name_folder: folder,
+                        unit: topic.unit.clone(),
+                        attrs: topic.attrs.clone(),
+                        data: Vec::new(),
+                    };
+                    graphs.push(graph);
+                }
+            }
+            &ParseMode::Csv => {
+                for topic in header.iter() {
+                    let name = topic.to_string();
+
+                    if graphs.iter().filter(|g| g.name.eq(&name)).count() > 0 {
+                        error!("Duplicate topic entry in CSV header for {}", name);
+                    }
+                    let (folder, base) = split_name(&name);
+                    let mut graph = Graph {
+                        name: name,
+                        name_base: base,
+                        name_folder: folder,
+                        unit: UNITLESS.to_string(),
+                        attrs: Vec::new(),
+                        data: Vec::new(),
+                    };
+                    graphs.push(graph);
+                }
+            }
+        }
 
         let mut step: i32 = 0;
         for row in csv_reader.records() {
@@ -179,7 +218,6 @@ fn gen_folders(json_header: JSONHeader, mut csv_reader: csv::Reader<File>, trim_
                 error!("{}", &row.unwrap_err().to_string());
             }
             let row = row.unwrap();
-            assert_eq!(row.len(), header.len());
 
             for i in 0..header.len() {
                 let (k, v) = (&header[i], &row[i]);
@@ -220,14 +258,19 @@ fn gen_folders(json_header: JSONHeader, mut csv_reader: csv::Reader<File>, trim_
     let values = {
         let mut values = Vec::new();
 
-        for value in json_header.values {
-            let (folder, base) = split_name(&value.name);
-            values.push(SortedValue {
-                name: value.name,
-                name_base: base,
-                name_folder: folder,
-                value: value.value,
-            });
+        match parse_mode {
+            ParseMode::Bag(json_header) => {
+                for value in json_header.values {
+                    let (folder, base) = split_name(&value.name);
+                    values.push(SortedValue {
+                        name: value.name,
+                        name_base: base,
+                        name_folder: folder,
+                        value: value.value,
+                    });
+                }
+            }
+            ParseMode::Csv => {}
         }
 
         values
