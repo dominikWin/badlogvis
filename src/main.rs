@@ -33,6 +33,15 @@ macro_rules! error {
     };
 }
 
+macro_rules! warning {
+    ($fmt:expr) => {
+        println!(concat!("{}: ", $fmt), "warning".bold().yellow());
+    };
+    ($fmt:expr, $($arg:tt)*) => {
+        println!(concat!("{}: ", $fmt), "warning".bold().yellow(), $($arg)*);
+    };
+}
+
 #[derive(StructOpt, Debug)]
 #[structopt(name = "badlogvis", about = "Create html from badlog data")]
 struct Opt {
@@ -199,6 +208,10 @@ fn gen_folders(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
             &ParseMode::Csv => {
                 for topic in header.iter() {
                     let name = topic.to_string();
+
+                    if name.ne(&name.trim()) {
+                        warning!("Topic \"{}\" has exterior whitespace", name);
+                    }
 
                     if graphs.iter().filter(|g| g.name.eq(&name)).count() > 0 {
                         error!("Duplicate topic entry in CSV header for {}", name);
