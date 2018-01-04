@@ -2,6 +2,7 @@
 pub enum Attribute {
     Hide,
     Area,
+    Xaxis,
 }
 
 impl Attribute {
@@ -11,6 +12,9 @@ impl Attribute {
         }
         if attribute_text.eq("area") {
             return Result::Ok(Attribute::Area);
+        }
+        if attribute_text.eq("xaxis") {
+            return Result::Ok(Attribute::Xaxis);
         }
 
         Result::Err(())

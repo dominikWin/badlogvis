@@ -25,6 +25,9 @@ use attribute::Attribute;
 use graph::Graph;
 use input::*;
 
+use colored::*;
+
+
 pub const UNITLESS: &str = "ul";
 
 #[derive(StructOpt, Debug)]
@@ -69,20 +72,50 @@ fn main() {
 }
 
 fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
+
+    let xaxis_index: Option<usize> = {
+        let mut out = Option::None;
+        for i in 0..topics.len() {
+            let topic: &Topic = &topics[i];
+            if topic.attrs.contains(&Attribute::Xaxis) {
+                if out.is_some() {
+                    error!("Multiple topics with xaxis attribute");
+                }
+                else {
+                    out = Some(i);
+                }
+            }
+        }
+        out
+    };
+
     let mut graphs = Vec::new();
-    for topic in topics {
+    for i in 0..topics.len() {
+        let topic: &Topic = &topics[i];
+
         if topic.attrs.contains(&Attribute::Hide) {
             continue;
         }
 
         let area = topic.attrs.contains(&Attribute::Area);
 
-        let data = util::fake_x_axis(topic.data);
+        let (data, x_unit) = if let Some(x_index) = xaxis_index {
+            let x_data = topics[x_index].data.clone();
+            let unit_text = match topics[x_index].unit.clone() {
+                None => "".to_string(),
+                Some(unit) => format!(" ({})", unit),
+            };
+            (util::bind_axis(x_data, topic.data.clone()), format!("{}{}", topics[x_index].name_base, unit_text))
+        }
+        else {
+            (util::fake_x_axis(topic.data.clone()), "Index".to_string())
+        };
         graphs.push(Graph {
             name: topic.name.clone(),
             name_base: topic.name_base.clone(),
-            name_folder: topic.name_folder,
+            name_folder: topic.name_folder.clone(),
             unit: topic.unit.clone(),
+            x_unit,
             data,
             area,
         });

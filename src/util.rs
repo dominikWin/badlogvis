@@ -42,3 +42,12 @@ pub fn fake_x_axis(data: Vec<f64>) -> Vec<(f64, f64)> {
     }
     points
 }
+
+pub fn bind_axis(x: Vec<f64>, y: Vec<f64>) -> Vec<(f64, f64)> {
+    assert_eq!(x.len(), y.len());
+    let mut points = Vec::with_capacity(x.len());
+    for i in 0..x.len() {
+        points.push((x[i], y[i]));
+    }
+    points
+}

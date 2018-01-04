@@ -6,6 +6,7 @@ pub struct Graph {
     pub name_base: String,
     pub name_folder: String,
     pub unit: Option<String>,
+    pub x_unit: String,
     pub data: Vec<(f64, f64)>,
     pub area: bool,
 }
@@ -57,6 +58,9 @@ impl Graph {
         xAxis: {{
             events: {{
                 setExtremes: syncExtremes
+            }},
+            title: {{
+                text: '{x_unit}'
             }}
         }},
         credits: {{
@@ -68,6 +72,6 @@ impl Graph {
         }}]
     }});
 </script>\
-", name = self.name, unit = unit, title = self.name_base, graph_type = graph_type, data = data, min_y = min_y)
+", name = self.name, unit = unit, title = self.name_base, graph_type = graph_type, data = data, min_y = min_y, x_unit = self.x_unit)
     }
 }
