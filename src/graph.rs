@@ -7,7 +7,7 @@ pub struct Graph {
     pub name_folder: String,
     pub unit: Option<String>,
     pub x_unit: String,
-    pub data: Vec<Series>,
+    pub series: Vec<Series>,
     pub area: bool,
 }
 
@@ -21,7 +21,7 @@ impl Graph {
     pub fn gen_highchart(&self) -> String {
         let mut series_content = String::new();
         let mut min_y = 0f64;
-        for s in self.data.iter() {
+        for s in self.series.iter() {
             let data: String = s.data.iter().map(|p| {
                 let (x, y) = *p;
                 format!("[{},{}]", x, y)

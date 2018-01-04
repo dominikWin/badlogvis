@@ -121,7 +121,7 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
             name_folder: topic.name_folder.clone(),
             unit: topic.unit.clone(),
             x_unit,
-            data: vec![series],
+            series: vec![series],
             area,
         });
     }
