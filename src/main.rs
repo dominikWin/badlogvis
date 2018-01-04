@@ -155,7 +155,9 @@ fn main() {
         csv::Reader::from_reader(tempfile)
     };
 
-    let folders: Vec<Folder> = gen_folders(parse_mode, rdr, opt.trim_doubles);
+    let (topics, values) = parse_input(parse_mode, rdr, opt.trim_doubles);
+
+    let folders: Vec<Folder> = gen_folders(topics, values);
 
     let out = gen_html(&input, folders, &csv_text);
 
@@ -178,7 +180,7 @@ fn split_name(name: &str) -> (String, String) {
     (folder, base)
 }
 
-fn gen_folders(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_doubles: bool) -> Vec<Folder> {
+fn parse_input(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_doubles: bool) -> (Vec<Topic>, Vec<Value>) {
     let topics = {
         let mut topics: Vec<Topic> = Vec::new();
 
@@ -297,6 +299,11 @@ fn gen_folders(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
 
         values
     };
+
+    (topics, values)
+}
+
+fn gen_folders(topics: Vec<Topic>, values: Vec<Value>) -> Vec<Folder> {
 
     let mut folders: Vec<Folder> = Vec::new();
 
