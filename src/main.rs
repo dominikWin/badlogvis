@@ -20,6 +20,8 @@ use std::cmp::Ordering::Equal;
 
 use colored::*;
 
+mod util;
+
 const UNITLESS: &str = "ul";
 
 macro_rules! error {
@@ -165,21 +167,6 @@ fn main() {
     outfile.write_all(out.as_bytes()).unwrap();
 }
 
-fn split_name(name: &str) -> (String, String) {
-    let mut parts: Vec<&str> = name.split("/").collect();
-
-    assert!(parts.len() > 0);
-
-    if parts.len() == 1 {
-        return ("".to_string(), parts[0].to_string());
-    }
-
-    let base = parts.pop().unwrap().to_string();
-    let folder = parts.join("/");
-
-    (folder, base)
-}
-
 fn parse_input(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_doubles: bool) -> (Vec<Topic>, Vec<Value>) {
     let topics = {
         let mut topics: Vec<Topic> = Vec::new();
@@ -194,7 +181,7 @@ fn parse_input(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
                     if topics.iter().filter(|g| g.name.eq(&topic.name)).count() > 0 {
                         error!("Duplicate topic entry in JSON header for {}", &topic.name);
                     }
-                    let (folder, base) = split_name(&topic.name);
+                    let (folder, base) = util::split_name(&topic.name);
                     let unit = if topic.unit.len() == 0 || topic.unit.eq(UNITLESS) {
                         Option::None
                     } else {
@@ -222,7 +209,7 @@ fn parse_input(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
                     if topics.iter().filter(|g| g.name.eq(&name)).count() > 0 {
                         error!("Duplicate topic entry in CSV header for {}", name);
                     }
-                    let (folder, base) = split_name(&name);
+                    let (folder, base) = util::split_name(&name);
                     let mut topic = Topic {
                         name,
                         name_base: base,
@@ -285,7 +272,7 @@ fn parse_input(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
         match parse_mode {
             ParseMode::Bag(json_header) => {
                 for value in json_header.values {
-                    let (folder, base) = split_name(&value.name);
+                    let (folder, base) = util::split_name(&value.name);
                     values.push(Value {
                         name: value.name,
                         name_base: base,
@@ -304,7 +291,6 @@ fn parse_input(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
 }
 
 fn gen_folders(topics: Vec<Topic>, values: Vec<Value>) -> Vec<Folder> {
-
     let mut folders: Vec<Folder> = Vec::new();
 
     'outer_topic: for topic in topics {
