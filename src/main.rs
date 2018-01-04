@@ -145,11 +145,14 @@ fn main() {
         (ParseMode::Bag(json_header), csv_text)
     };
 
-    let mut tempfile = tempfile::tempfile().unwrap();
-    tempfile.write(csv_text.as_bytes()).unwrap();
-    tempfile.seek(SeekFrom::Start(0)).unwrap();
-
-    let rdr = csv::Reader::from_reader(tempfile);
+    let rdr: csv::Reader<File> = if opt.csv {
+        csv::Reader::from_path(&input).unwrap()
+    } else {
+        let mut tempfile = tempfile::tempfile().unwrap();
+        tempfile.write(csv_text.as_bytes()).unwrap();
+        tempfile.seek(SeekFrom::Start(0)).unwrap();
+        csv::Reader::from_reader(tempfile)
+    };
 
     let folders: Vec<Folder> = gen_folders(parse_mode, rdr, opt.trim_doubles);
 
