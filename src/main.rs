@@ -39,6 +39,9 @@ struct Opt {
 
     #[structopt(help = "Output file, default to <input>.html")]
     output: Option<String>,
+
+    #[structopt(short = "t", long = "trim-doubles", help = "Retry parsing doubles without whitespace")]
+    trim_doubles: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -94,8 +97,7 @@ fn main() {
     let contents: String = {
         let mut f = File::open(input.clone());
         if f.is_err() {
-            println!("{} Error opening file \"{}\": {}", "error:".bold().red(), input, f.unwrap_err().to_string());
-            std::process::exit(1);
+            error!("Failed to open file \"{}\": {}", input, f.unwrap_err().to_string());
         }
         let mut f = f.unwrap();
         let mut contents = String::new();
@@ -103,7 +105,7 @@ fn main() {
         contents
     };
 
-    let json_header = contents.lines().take(1).last().unwrap().to_string();
+    let json_header_text = contents.lines().take(1).last().unwrap().to_string();
     let csv_data = contents.lines().skip(1).fold("".to_string(), |a, b| {
         if a.len() == 0 {
             b.to_string()
@@ -112,7 +114,11 @@ fn main() {
         }
     });
 
-    let p: JSONHeader = serde_json::from_str(&json_header).unwrap();
+    let json_header = serde_json::from_str(&json_header_text);
+    if json_header.is_err() {
+        error!("Failed to parse json header: {}", json_header.unwrap_err().to_string());
+    }
+    let json_header = json_header.unwrap();
 
     let mut tempfile = tempfile::tempfile().unwrap();
     tempfile.write(csv_data.as_bytes()).unwrap();
@@ -120,7 +126,7 @@ fn main() {
 
     let rdr = csv::Reader::from_reader(tempfile);
 
-    let folders: Vec<Folder> = gen_folders(p, rdr);
+    let folders: Vec<Folder> = gen_folders(json_header, rdr, opt.trim_doubles);
 
     let out = gen_html(&input, folders, &csv_data);
 
@@ -143,11 +149,14 @@ fn split_name(name: &str) -> (String, String) {
     (folder, base)
 }
 
-fn gen_folders(json_header: JSONHeader, mut csv_reader: csv::Reader<File>) -> Vec<Folder> {
+fn gen_folders(json_header: JSONHeader, mut csv_reader: csv::Reader<File>, trim_doubles: bool) -> Vec<Folder> {
     let graphs = {
         let mut graphs: Vec<Graph> = Vec::new();
 
         for topic in json_header.topics {
+            if graphs.iter().filter(|g| g.name.eq(&topic.name)).count() > 0 {
+                error!("Duplicate topic entry in JSON header for {}", &topic.name);
+            }
             let (folder, base) = split_name(&topic.name);
             let mut graph = Graph {
                 name: topic.name,
@@ -166,15 +175,39 @@ fn gen_folders(json_header: JSONHeader, mut csv_reader: csv::Reader<File>) -> Ve
 
         let mut step: i32 = 0;
         for row in csv_reader.records() {
+            if row.is_err() {
+                error!("{}", &row.unwrap_err().to_string());
+            }
             let row = row.unwrap();
             assert_eq!(row.len(), header.len());
 
             for i in 0..header.len() {
                 let (k, v) = (&header[i], &row[i]);
 
-                assert_eq!(graphs.iter().filter(|g| g.name.eq(k)).count(), 1);
+                {
+                    let count = graphs.iter().filter(|g| g.name.eq(k)).count();
+                    if count != 1 {
+                        if count > 1 {
+                            panic!();
+                        }
+                        error!("Can't find topic {} in JSON header", k);
+                    }
+                }
+
                 let graph = graphs.iter_mut().filter(|g| g.name.eq(k)).last().unwrap();
-                let datapoint = v.to_string().parse::<f64>().expect(&format!("Failed to parse f64 : {:?} on line {}", v, step));
+                let mut datapoint = v.to_string().parse::<f64>();
+                if datapoint.is_err() {
+                    if trim_doubles {
+                        let test_v = v.trim();
+                        datapoint = test_v.to_string().parse::<f64>();
+                        if datapoint.is_err() {
+                            error!("Failed to parse \"{}\" as a double", v);
+                        }
+                    } else {
+                        error!("Failed to parse \"{}\" as a double (maybe try --trim-doubles)", v);
+                    }
+                }
+                let datapoint = datapoint.unwrap();
                 graph.data.push(((step as f64), datapoint));
             }
 
