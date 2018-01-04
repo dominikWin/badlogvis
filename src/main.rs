@@ -59,26 +59,26 @@ struct Opt {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Topic {
+struct JSONTopic {
     name: String,
     unit: String,
     attrs: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Value {
+struct JSONValue {
     name: String,
     value: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 struct JSONHeader {
-    topics: Vec<Topic>,
-    values: Vec<Value>,
+    topics: Vec<JSONTopic>,
+    values: Vec<JSONValue>,
 }
 
 #[derive(Debug)]
-struct Graph {
+struct Topic {
     pub name: String,
     pub name_base: String,
     pub name_folder: String,
@@ -88,7 +88,7 @@ struct Graph {
 }
 
 #[derive(Debug)]
-struct SortedValue {
+struct Value {
     pub name: String,
     pub name_base: String,
     pub name_folder: String,
@@ -98,10 +98,11 @@ struct SortedValue {
 #[derive(Debug)]
 struct Folder {
     pub name: String,
-    pub table: Vec<SortedValue>,
-    pub graphs: Vec<Graph>,
+    pub table: Vec<Value>,
+    pub topics: Vec<Topic>,
 }
 
+#[derive(Debug)]
 enum ParseMode {
     Bag(JSONHeader),
     Csv,
@@ -178,8 +179,8 @@ fn split_name(name: &str) -> (String, String) {
 }
 
 fn gen_folders(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_doubles: bool) -> Vec<Folder> {
-    let graphs = {
-        let mut graphs: Vec<Graph> = Vec::new();
+    let topics = {
+        let mut topics: Vec<Topic> = Vec::new();
 
         let header = {
             csv_reader.headers().unwrap().clone()
@@ -188,7 +189,7 @@ fn gen_folders(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
         match &parse_mode {
             &ParseMode::Bag(ref json_header) => {
                 for topic in json_header.topics.iter() {
-                    if graphs.iter().filter(|g| g.name.eq(&topic.name)).count() > 0 {
+                    if topics.iter().filter(|g| g.name.eq(&topic.name)).count() > 0 {
                         error!("Duplicate topic entry in JSON header for {}", &topic.name);
                     }
                     let (folder, base) = split_name(&topic.name);
@@ -197,7 +198,7 @@ fn gen_folders(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
                     } else {
                         Option::Some(topic.unit.clone())
                     };
-                    let mut graph = Graph {
+                    let mut topic = Topic {
                         name: topic.name.clone(),
                         name_base: base,
                         name_folder: folder,
@@ -205,7 +206,7 @@ fn gen_folders(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
                         attrs: topic.attrs.clone(),
                         data: Vec::new(),
                     };
-                    graphs.push(graph);
+                    topics.push(topic);
                 }
             }
             &ParseMode::Csv => {
@@ -216,11 +217,11 @@ fn gen_folders(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
                         warning!("Topic \"{}\" has exterior whitespace", name);
                     }
 
-                    if graphs.iter().filter(|g| g.name.eq(&name)).count() > 0 {
+                    if topics.iter().filter(|g| g.name.eq(&name)).count() > 0 {
                         error!("Duplicate topic entry in CSV header for {}", name);
                     }
                     let (folder, base) = split_name(&name);
-                    let mut graph = Graph {
+                    let mut topic = Topic {
                         name,
                         name_base: base,
                         name_folder: folder,
@@ -228,7 +229,7 @@ fn gen_folders(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
                         attrs: Vec::new(),
                         data: Vec::new(),
                     };
-                    graphs.push(graph);
+                    topics.push(topic);
                 }
             }
         }
@@ -244,7 +245,7 @@ fn gen_folders(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
                 let (k, v) = (&header[i], &row[i]);
 
                 {
-                    let count = graphs.iter().filter(|g| g.name.eq(k)).count();
+                    let count = topics.iter().filter(|g| g.name.eq(k)).count();
                     if count != 1 {
                         if count > 1 {
                             panic!();
@@ -253,7 +254,7 @@ fn gen_folders(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
                     }
                 }
 
-                let graph = graphs.iter_mut().filter(|g| g.name.eq(k)).last().unwrap();
+                let topic = topics.iter_mut().filter(|g| g.name.eq(k)).last().unwrap();
                 let mut datapoint = v.to_string().parse::<f64>();
                 if datapoint.is_err() {
                     if trim_doubles {
@@ -267,13 +268,13 @@ fn gen_folders(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
                     }
                 }
                 let datapoint = datapoint.unwrap();
-                graph.data.push(((step as f64), datapoint));
+                topic.data.push(((step as f64), datapoint));
             }
 
             step += 1;
         }
 
-        graphs
+        topics
     };
 
     let values = {
@@ -283,7 +284,7 @@ fn gen_folders(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
             ParseMode::Bag(json_header) => {
                 for value in json_header.values {
                     let (folder, base) = split_name(&value.name);
-                    values.push(SortedValue {
+                    values.push(Value {
                         name: value.name,
                         name_base: base,
                         name_folder: folder,
@@ -299,17 +300,17 @@ fn gen_folders(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
 
     let mut folders: Vec<Folder> = Vec::new();
 
-    'outer_graph: for graph in graphs {
+    'outer_topic: for topic in topics {
         for folder in folders.iter_mut() {
-            if folder.name.eq(&graph.name_folder) {
-                folder.graphs.push(graph);
-                continue 'outer_graph;
+            if folder.name.eq(&topic.name_folder) {
+                folder.topics.push(topic);
+                continue 'outer_topic;
             }
         }
         folders.push(Folder {
-            name: graph.name_folder.clone(),
+            name: topic.name_folder.clone(),
             table: Vec::new(),
-            graphs: vec![graph],
+            topics: vec![topic],
         });
     }
 
@@ -323,13 +324,13 @@ fn gen_folders(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
         folders.push(Folder {
             name: value.name_folder.clone(),
             table: vec![value],
-            graphs: Vec::new(),
+            topics: Vec::new(),
         });
     }
 
     for folder in folders.iter_mut() {
 //        folder.table.sort_by(|a, b| a.name_base.to_ascii_lowercase().cmp(&(b.name_base.to_ascii_lowercase())));
-        folder.graphs.sort_by(|a, b| a.name_base.to_ascii_lowercase().cmp(&b.name_base.to_ascii_lowercase()));
+        folder.topics.sort_by(|a, b| a.name_base.to_ascii_lowercase().cmp(&b.name_base.to_ascii_lowercase()));
     }
 
     folders.sort_by(|a, b| a.name.to_ascii_lowercase().cmp(&b.name.to_ascii_lowercase()));
@@ -337,7 +338,7 @@ fn gen_folders(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
     folders
 }
 
-impl Graph {
+impl Topic {
     pub fn gen_highchart(&self) -> String {
         let data: String = self.data.iter().map(|p| {
             let (x, y) = *p;
@@ -401,8 +402,8 @@ impl Folder {
     pub fn gen_html(&self) -> String {
         let table = gen_table(&self.table);
         let mut graph_content = String::new();
-        for graph in self.graphs.iter() {
-            graph_content += &graph.gen_highchart();
+        for topic in self.topics.iter() {
+            graph_content += &topic.gen_highchart();
         }
 
         if self.name.len() == 0 {
@@ -428,7 +429,7 @@ impl Folder {
     }
 }
 
-fn gen_table(values: &Vec<SortedValue>) -> String {
+fn gen_table(values: &Vec<Value>) -> String {
     if values.len() == 0 {
         return "<!-- Empty table omitted -->\n".to_string();
     }
