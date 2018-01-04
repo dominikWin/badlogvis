@@ -12,3 +12,13 @@ pub fn split_name(name: &str) -> (String, String) {
 
     (folder, base)
 }
+
+pub fn fake_x_axis(data: Vec<f64>) -> Vec<(f64, f64)> {
+    let mut points = Vec::with_capacity(data.len());
+    let mut x = 0;
+    for point in data {
+        points.push((x as f64, point));
+        x += 1;
+    }
+    points
+}

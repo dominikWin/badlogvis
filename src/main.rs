@@ -12,6 +12,7 @@ extern crate colored;
 
 mod util;
 mod attribute;
+mod graph;
 
 use std::fs::File;
 use std::io::prelude::*;
@@ -19,11 +20,10 @@ use std::io::SeekFrom;
 
 use structopt::StructOpt;
 
-use std::cmp::Ordering::Equal;
-
 use colored::*;
 
 use attribute::Attribute;
+use graph::Graph;
 
 const UNITLESS: &str = "ul";
 
@@ -89,7 +89,7 @@ struct Topic {
     pub name_folder: String,
     pub unit: Option<String>,
     pub attrs: Vec<Attribute>,
-    pub data: Vec<(f64, f64)>,
+    pub data: Vec<f64>,
 }
 
 #[derive(Debug)]
@@ -104,7 +104,7 @@ struct Value {
 struct Folder {
     pub name: String,
     pub table: Vec<Value>,
-    pub topics: Vec<Topic>,
+    pub graphs: Vec<Graph>,
 }
 
 #[derive(Debug)]
@@ -162,7 +162,9 @@ fn main() {
 
     let (topics, values) = parse_input(parse_mode, rdr, opt.trim_doubles);
 
-    let folders: Vec<Folder> = gen_folders(topics, values);
+    let graphs = gen_graphs(topics);
+
+    let folders: Vec<Folder> = gen_folders(graphs, values);
 
     let out = gen_html(&input, folders, &csv_text);
 
@@ -239,7 +241,6 @@ fn parse_input(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
             }
         }
 
-        let mut step: i32 = 0;
         for row in csv_reader.records() {
             if row.is_err() {
                 error!("{}", &row.unwrap_err().to_string());
@@ -273,10 +274,8 @@ fn parse_input(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
                     }
                 }
                 let datapoint = datapoint.unwrap();
-                topic.data.push(((step as f64), datapoint));
+                topic.data.push(datapoint);
             }
-
-            step += 1;
         }
 
         topics
@@ -306,20 +305,35 @@ fn parse_input(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
     (topics, values)
 }
 
-fn gen_folders(topics: Vec<Topic>, values: Vec<Value>) -> Vec<Folder> {
+fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
+    let mut graphs = Vec::new();
+    for topic in topics {
+        let data = util::fake_x_axis(topic.data);
+        graphs.push(Graph {
+            name: topic.name.clone(),
+            name_base: topic.name_base.clone(),
+            name_folder: topic.name_folder,
+            unit: topic.unit.clone(),
+            data,
+        });
+    }
+    graphs
+}
+
+fn gen_folders(graphs: Vec<Graph>, values: Vec<Value>) -> Vec<Folder> {
     let mut folders: Vec<Folder> = Vec::new();
 
-    'outer_topic: for topic in topics {
+    'outer_topic: for graph in graphs {
         for folder in folders.iter_mut() {
-            if folder.name.eq(&topic.name_folder) {
-                folder.topics.push(topic);
+            if folder.name.eq(&graph.name_folder) {
+                folder.graphs.push(graph);
                 continue 'outer_topic;
             }
         }
         folders.push(Folder {
-            name: topic.name_folder.clone(),
+            name: graph.name_folder.clone(),
             table: Vec::new(),
-            topics: vec![topic],
+            graphs: vec![graph],
         });
     }
 
@@ -333,13 +347,13 @@ fn gen_folders(topics: Vec<Topic>, values: Vec<Value>) -> Vec<Folder> {
         folders.push(Folder {
             name: value.name_folder.clone(),
             table: vec![value],
-            topics: Vec::new(),
+            graphs: Vec::new(),
         });
     }
 
     for folder in folders.iter_mut() {
 //        folder.table.sort_by(|a, b| a.name_base.to_ascii_lowercase().cmp(&(b.name_base.to_ascii_lowercase())));
-        folder.topics.sort_by(|a, b| a.name_base.to_ascii_lowercase().cmp(&b.name_base.to_ascii_lowercase()));
+        folder.graphs.sort_by(|a, b| a.name_base.to_ascii_lowercase().cmp(&b.name_base.to_ascii_lowercase()));
     }
 
     folders.sort_by(|a, b| a.name.to_ascii_lowercase().cmp(&b.name.to_ascii_lowercase()));
@@ -347,71 +361,11 @@ fn gen_folders(topics: Vec<Topic>, values: Vec<Value>) -> Vec<Folder> {
     folders
 }
 
-impl Topic {
-    pub fn gen_highchart(&self) -> String {
-        let data: String = self.data.iter().map(|p| {
-            let (x, y) = *p;
-            format!("[{},{}]", x, y)
-        }).fold("".to_string(), |a, b| {
-            if a.len() == 0 {
-                b.to_string()
-            } else {
-                [a, b.to_string()].join(",")
-            }
-        });
-
-        let min_y = self.data.iter().map(|p| {
-            let (_, y) = *p;
-            y
-        }).min_by(|a, b| a.partial_cmp(b).unwrap_or(Equal)).unwrap();
-
-        let min_y = if min_y < 0f64 { min_y } else { 0f64 };
-
-        let unit = match &self.unit {
-            &None => "".to_string(),
-            &Some(ref unit) => format!(" ({})", unit)
-        };
-
-        format!("\
-<div id=\"{name}\" style=\"min-width: 310px; height: 400px; margin: 0 auto\"></div>
-<script>
-    Highcharts.chart('{name}', {{
-        chart: {{
-            type: 'line',
-            zoomType: 'x'
-        }},
-        title: {{
-            text: '{title}{unit}'
-        }},
-        subtitle: {{
-            text: '{name}'
-        }},
-        yAxis: {{
-            min: {min_y}
-        }},
-        xAxis: {{
-            events: {{
-                setExtremes: syncExtremes
-            }}
-        }},
-        credits: {{
-            enabled: false
-        }},
-        series: [{{
-            //name: '{title}',
-            data: [{data}]
-        }}]
-    }});
-</script>\
-", name = self.name, unit = unit, title = self.name_base, data = data, min_y = min_y)
-    }
-}
-
 impl Folder {
     pub fn gen_html(&self) -> String {
         let table = gen_table(&self.table);
         let mut graph_content = String::new();
-        for topic in self.topics.iter() {
+        for topic in self.graphs.iter() {
             graph_content += &topic.gen_highchart();
         }
 
