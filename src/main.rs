@@ -10,6 +10,9 @@ extern crate csv;
 extern crate base64;
 extern crate colored;
 
+mod util;
+mod attribute;
+
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::SeekFrom;
@@ -20,7 +23,7 @@ use std::cmp::Ordering::Equal;
 
 use colored::*;
 
-mod util;
+use attribute::Attribute;
 
 const UNITLESS: &str = "ul";
 
@@ -85,7 +88,7 @@ struct Topic {
     pub name_base: String,
     pub name_folder: String,
     pub unit: Option<String>,
-    pub attrs: Vec<String>,
+    pub attrs: Vec<Attribute>,
     pub data: Vec<(f64, f64)>,
 }
 
@@ -187,12 +190,25 @@ fn parse_input(parse_mode: ParseMode, mut csv_reader: csv::Reader<File>, trim_do
                     } else {
                         Option::Some(topic.unit.clone())
                     };
+
+                    let attrs: Vec<Attribute> = {
+                        let mut attrs = Vec::new();
+                        for attr_text in topic.attrs.iter() {
+                            let attr = Attribute::from(attr_text);
+                            if attr.is_err() {
+                                warning!("Failed to parse attribute {}, skipping it", attr_text);
+                                continue;
+                            }
+                        }
+                        attrs
+                    };
+
                     let mut topic = Topic {
                         name: topic.name.clone(),
                         name_base: base,
                         name_folder: folder,
                         unit,
-                        attrs: topic.attrs.clone(),
+                        attrs,
                         data: Vec::new(),
                     };
                     topics.push(topic);
