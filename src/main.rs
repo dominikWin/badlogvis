@@ -20,6 +20,17 @@ use std::cmp::Ordering::Equal;
 
 use colored::*;
 
+macro_rules! error {
+    ($fmt:expr) => {
+        println!(concat!("{}: ", $fmt), "error".bold().red());
+        std::process::exit(1);
+    };
+    ($fmt:expr, $($arg:tt)*) => {
+        println!(concat!("{}: ", $fmt), "error".bold().red(), $($arg)*);
+        std::process::exit(1);
+    };
+}
+
 #[derive(StructOpt, Debug)]
 #[structopt(name = "badlogvis", about = "Create html from badlog data")]
 struct Opt {
