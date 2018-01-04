@@ -51,3 +51,15 @@ pub fn bind_axis(x: Vec<f64>, y: Vec<f64>) -> Vec<(f64, f64)> {
     }
     points
 }
+
+pub fn differention(orig: &Vec<(f64, f64)>) -> Vec<(f64, f64)> {
+    let mut out = Vec::with_capacity(orig.len() - 1);
+    for i in 0..orig.len() - 1 {
+        let (x1, y1) = orig[i];
+        let (x2, y2) = orig[i + 1];
+        let x = (x1 + x2) / 2f64;
+        let slope = (y2 - y1) / (x2 - x1);
+        out.push((x, slope));
+    }
+    out
+}

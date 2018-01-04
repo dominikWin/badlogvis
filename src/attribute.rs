@@ -3,6 +3,7 @@ pub enum Attribute {
     Hide,
     Area,
     Xaxis,
+    Differentiate,
 }
 
 impl Attribute {
@@ -15,6 +16,9 @@ impl Attribute {
         }
         if attribute_text.eq("xaxis") {
             return Result::Ok(Attribute::Xaxis);
+        }
+        if attribute_text.eq("differentiate") {
+            return Result::Ok(Attribute::Differentiate);
         }
 
         Result::Err(())

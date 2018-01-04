@@ -72,7 +72,6 @@ fn main() {
 }
 
 fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
-
     let xaxis_index: Option<usize> = {
         let mut out = Option::None;
         for i in 0..topics.len() {
@@ -80,8 +79,7 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
             if topic.attrs.contains(&Attribute::Xaxis) {
                 if out.is_some() {
                     error!("Multiple topics with xaxis attribute");
-                }
-                else {
+                } else {
                     out = Some(i);
                 }
             }
@@ -89,9 +87,51 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
         out
     };
 
+    let x_unit = if let Some(x_index) = xaxis_index {
+        let unit_text = match topics[x_index].unit.clone() {
+            None => "".to_string(),
+            Some(unit) => format!(" ({})", unit),
+        };
+        (unit_text)
+    } else {
+        "Index".to_string()
+    };
+
     let mut graphs = Vec::new();
     for i in 0..topics.len() {
         let topic: &Topic = &topics[i];
+
+        {
+            if topic.attrs.contains(&Attribute::Differentiate) {
+                let name = format!("{} Derivative", topic.name);
+                let (name_folder, name_base) = util::split_name(&name);
+                let unit: Option<String> = Option::None;
+                let data = if let Some(x_index) = xaxis_index {
+                    let x_data = topics[x_index].data.clone();
+                    util::bind_axis(x_data, topic.data.clone())
+                } else {
+                    util::fake_x_axis(topic.data.clone())
+                };
+                let data = util::differention(&data);
+                let series: Series = Series {
+                    name: Option::None,
+                    data,
+                };
+                let area = false;
+                let direct = false;
+
+                graphs.push(Graph {
+                    name,
+                    name_base,
+                    name_folder,
+                    unit,
+                    x_unit: x_unit.clone(),
+                    series: vec![series],
+                    area,
+                    direct,
+                })
+            }
+        }
 
         if topic.attrs.contains(&Attribute::Hide) {
             continue;
@@ -99,30 +139,27 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
 
         let area = topic.attrs.contains(&Attribute::Area);
 
-        let (data, x_unit) = if let Some(x_index) = xaxis_index {
+        let data = if let Some(x_index) = xaxis_index {
             let x_data = topics[x_index].data.clone();
-            let unit_text = match topics[x_index].unit.clone() {
-                None => "".to_string(),
-                Some(unit) => format!(" ({})", unit),
-            };
-            (util::bind_axis(x_data, topic.data.clone()), format!("{}{}", topics[x_index].name_base, unit_text))
-        }
-        else {
-            (util::fake_x_axis(topic.data.clone()), "Index".to_string())
+            util::bind_axis(x_data, topic.data.clone())
+        } else {
+            util::fake_x_axis(topic.data.clone())
         };
 
         let series: Series = Series {
             name: Option::None,
             data,
         };
+
         graphs.push(Graph {
             name: topic.name.clone(),
             name_base: topic.name_base.clone(),
             name_folder: topic.name_folder.clone(),
             unit: topic.unit.clone(),
-            x_unit,
+            x_unit: x_unit.clone(),
             series: vec![series],
             area,
+            direct: true,
         });
     }
     graphs

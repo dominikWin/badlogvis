@@ -9,6 +9,7 @@ pub struct Graph {
     pub x_unit: String,
     pub series: Vec<Series>,
     pub area: bool,
+    pub direct: bool,
 }
 
 #[derive(Debug)]
