@@ -85,16 +85,13 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
     };
 
     let x_unit = if let Some(x_index) = xaxis_index {
-        let unit_text = match topics[x_index].unit.clone() {
-            None => "".to_string(),
-            Some(unit) => format!(" ({})", unit),
-        };
+        let unit_text = format!("{} ({})", topics[x_index].name_base, topics[x_index].unit);
         (unit_text)
     } else {
         "Index".to_string()
     };
 
-    let gen_series = |data: Vec<f64>, name: Option<String>| {
+    let gen_series = |data: Vec<f64>, name: String| {
         let data = if let Some(x_index) = xaxis_index {
             let x_data = topics[x_index].data.clone();
             util::bind_axis(x_data, data)
@@ -116,16 +113,13 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
             if topic.attrs.contains(&Attribute::Differentiate) {
                 let name = format!("{} Derivative", topic.name);
 
-                let mut unit = Option::None;
-                if topic.unit.is_some() && xaxis_index.is_some() {
-                    if topics[xaxis_index.unwrap()].unit.is_some() {
-                        unit = Option::Some(format!("{}/{}", topic.unit.clone().unwrap(), &topics[xaxis_index.unwrap()].unit.clone().unwrap()));
-                    }
-                }
+                let (_, name_base) = util::split_name(&name);
 
-                let series = gen_series(topic.data.clone(), Option::None).differentiate();
+                let mut unit = format!("{}/{}", topic.unit, if xaxis_index.is_some() { &topics[xaxis_index.unwrap()].unit } else { "Index" });
 
-                let graph = Graph::from_default(name, unit, x_unit.clone(),  vec![series],false);
+                let series = gen_series(topic.data.clone(), name_base).differentiate();
+
+                let graph = Graph::from_default(name, unit, x_unit.clone(), vec![series], false);
 
                 graphs.push(graph);
             }
@@ -135,7 +129,7 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
             continue;
         }
 
-        let series = gen_series(topic.data.clone(), Option::None);
+        let series = gen_series(topic.data.clone(), topic.name_base.clone());
 
         let mut graph = Graph::from_default(topic.name.clone(), topic.unit.clone(), x_unit.clone(), vec![series], true);
 
@@ -160,22 +154,22 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
 
                         let join_graph: &mut Graph = join_graph;
 
-                        if join_graph.series.iter().filter(|s| s.name.clone().unwrap().eq(&topic.name_base)).count() > 0 {
+                        if join_graph.series.iter().filter(|s| s.name.eq(&topic.name_base)).count() > 0 {
                             warning!("Attempting to join multiple topics with same name: {}", topic.name_base);
                         }
 
                         if join_graph.unit.ne(&topic.unit) {
-                            warning!("Attempting to join different units: {} ({}) and {} ({})", join_graph.name, join_graph.unit.clone().unwrap_or("ul".to_string()), topic.name, topic.unit.clone().unwrap_or("ul".to_string()));
+                            warning!("Attempting to join different units: {} ({}) and {} ({})", join_graph.name, join_graph.unit.clone(), topic.name, topic.unit.clone());
                         }
 
-                        let series = gen_series(topic.data.clone(), Option::Some(topic.name_base.clone()));
+                        let series = gen_series(topic.data.clone(), topic.name_base.clone());
 
                         join_graph.series.push(series);
 
                         Option::None
                     } else {
                         let name = join_graph_name;
-                        let series = gen_series(topic.data.clone(), Option::Some(topic.name_base.clone()));
+                        let series = gen_series(topic.data.clone(), topic.name_base.clone());
                         let graph = Graph::from_default(name, topic.unit.clone(), x_unit.clone(), vec![series], false);
 
                         Option::Some(graph)

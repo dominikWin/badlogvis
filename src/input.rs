@@ -35,7 +35,7 @@ pub struct Topic {
     pub name: String,
     pub name_base: String,
     pub name_folder: String,
-    pub unit: Option<String>,
+    pub unit: String,
     pub attrs: Vec<Attribute>,
     pub data: Vec<f64>,
 }
@@ -112,10 +112,10 @@ pub fn parse_input(input: &str, opt: &Opt) -> (Vec<Topic>, Vec<Value>, String) {
                         error!("Duplicate topic entry in JSON header for {}", &topic.name);
                     }
                     let (folder, base) = util::split_name(&topic.name);
-                    let unit = if topic.unit.len() == 0 || topic.unit.eq(::UNITLESS) {
-                        Option::None
+                    let unit = if topic.unit.len() == 0 {
+                        ::UNITLESS.to_string()
                     } else {
-                        Option::Some(topic.unit.clone())
+                        topic.unit.clone()
                     };
 
                     let attrs: Vec<Attribute> = {
@@ -158,7 +158,7 @@ pub fn parse_input(input: &str, opt: &Opt) -> (Vec<Topic>, Vec<Value>, String) {
                         name,
                         name_base: base,
                         name_folder: folder,
-                        unit: Option::None,
+                        unit: ::UNITLESS.to_string(),
                         attrs: Vec::new(),
                         data: Vec::new(),
                     };

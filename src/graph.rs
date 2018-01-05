@@ -6,7 +6,7 @@ pub struct Graph {
     pub name: String,
     pub name_base: String,
     pub name_folder: String,
-    pub unit: Option<String>,
+    pub unit: String,
     pub x_unit: String,
     pub series: Vec<Series>,
     pub area: bool,
@@ -16,12 +16,12 @@ pub struct Graph {
 
 #[derive(Debug)]
 pub struct Series {
-    pub name: Option<String>,
+    pub name: String,
     pub data: Vec<(f64, f64)>,
 }
 
 impl Graph {
-    pub fn from_default(name: String, unit: Option<String>, x_unit: String, series: Vec<Series>, direct: bool) -> Graph {
+    pub fn from_default(name: String, unit: String, x_unit: String, series: Vec<Series>, direct: bool) -> Graph {
         let (name_folder, name_base) = util::split_name(&name);
         Graph {
             name,
@@ -50,15 +50,10 @@ impl Graph {
                     [a, b.to_string()].join(",")
                 }
             });
-            let name = if let Some(name) = s.name.clone() {
-                format!("name: '{}',", name)
-            } else {
-                "".to_string()
-            };
             let series_text = format!("{{
-                {name}
+                name: '{name}',
                 data: [{data}]
-            }},", name = name, data = data);
+            }},", name = s.name, data = data);
 
             series_content += &series_text;
 
@@ -72,10 +67,7 @@ impl Graph {
             }
         }
 
-        let unit = match &self.unit {
-            &None => "".to_string(),
-            &Some(ref unit) => format!(" ({})", unit)
-        };
+        let unit = format!(" ({})", self.unit);
 
         let graph_type = if self.area { "area" } else { "line" };
 
