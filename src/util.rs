@@ -70,6 +70,18 @@ pub fn differention(orig: &Vec<(f64, f64)>) -> Vec<(f64, f64)> {
     out
 }
 
+pub fn delta(orig: &Vec<(f64, f64)>) -> Vec<(f64, f64)> {
+    let mut out = Vec::with_capacity(orig.len() - 1);
+    for i in 0..orig.len() - 1 {
+        let (x1, y1) = orig[i];
+        let (x2, y2) = orig[i + 1];
+        let x = (x1 + x2) / 2f64;
+        let delta = y2 - y1;
+        out.push((x, delta));
+    }
+    out
+}
+
 pub fn integration(orig: &Vec<(f64, f64)>) -> (Vec<(f64, f64)>, f64) {
     let mut out = Vec::with_capacity(orig.len() - 1);
     let mut total_area = 0f64;

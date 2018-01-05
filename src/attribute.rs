@@ -5,6 +5,7 @@ pub enum Attribute {
     Xaxis,
     Differentiate,
     Integrate,
+    Delta,
     Zero,
     Join(String),
 }
@@ -28,6 +29,9 @@ impl Attribute {
         }
         if attribute_text.eq("integrate") {
             return Result::Ok(Attribute::Integrate);
+        }
+        if attribute_text.eq("delta") {
+            return Result::Ok(Attribute::Delta);
         }
         if attribute_text.starts_with("join:") {
             let (_, right) = attribute_text.split_at(5);

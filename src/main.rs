@@ -142,6 +142,23 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
             }
         }
 
+        // Handle delta
+        {
+            if topic.attrs.contains(&Attribute::Delta) {
+                let name = format!("{} Delta", topic.name);
+
+                let (_, name_base) = util::split_name(&name);
+
+                let unit = topic.unit.clone();
+
+                let series = gen_series(topic.data.clone(), name_base).delta();
+
+                let graph = Graph::from_default(name, unit, x_unit.clone(), vec![series], false);
+
+                graphs.push(graph);
+            }
+        }
+
         if topic.attrs.contains(&Attribute::Hide) {
             continue;
         }

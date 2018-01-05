@@ -134,4 +134,11 @@ impl Series {
             data,
         }, total_area)
     }
+
+    pub fn delta(&self) -> Series {
+        Series {
+            name: self.name.clone(),
+            data: util::delta(&self.data),
+        }
+    }
 }
