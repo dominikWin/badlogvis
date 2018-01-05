@@ -9,9 +9,10 @@ pub struct Graph {
     pub unit: String,
     pub x_unit: String,
     pub series: Vec<Series>,
-    pub area: bool,
     pub virt: bool,
-    pub zero: bool
+    pub joinable: bool,
+    pub area: bool,
+    pub zero: bool,
 }
 
 #[derive(Debug)]
@@ -33,6 +34,7 @@ impl Graph {
             area: false,
             virt,
             zero: false,
+            joinable: false,
         }
     }
 

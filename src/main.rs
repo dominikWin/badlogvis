@@ -182,8 +182,8 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
                 let graph = {
                     let join_graph = graphs.iter_mut().filter(|g| g.name.eq(&join_graph_name)).last();
                     if let Some(join_graph) = join_graph {
-                        if !join_graph.virt {
-                            error!("Attempting to join to non-virtual graph {}", join_graph.name);
+                        if !join_graph.joinable {
+                            error!("Attempting to join to non-joinable graph {}", join_graph.name);
                         }
 
                         let join_graph: &mut Graph = join_graph;
@@ -204,7 +204,8 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
                     } else {
                         let name = join_graph_name;
                         let series = gen_series(topic.data.clone(), topic.name_base.clone());
-                        let graph = Graph::from_default(name, topic.unit.clone(), x_unit.clone(), vec![series], true);
+                        let mut graph = Graph::from_default(name, topic.unit.clone(), x_unit.clone(), vec![series], true);
+                        graph.joinable = true;
 
                         Option::Some(graph)
                     }
