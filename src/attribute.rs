@@ -1,9 +1,10 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Attribute {
     Hide,
     Area,
     Xaxis,
     Differentiate,
+    Join(String),
 }
 
 impl Attribute {
@@ -19,6 +20,13 @@ impl Attribute {
         }
         if attribute_text.eq("differentiate") {
             return Result::Ok(Attribute::Differentiate);
+        }
+        if attribute_text.starts_with("join:") {
+            let (_, right) = attribute_text.split_at(5);
+            if right.len() == 0 {
+                error!("Failed to join topic: {}", attribute_text);
+            }
+            return Result::Ok(Attribute::Join(right.to_string()));
         }
 
         Result::Err(())
