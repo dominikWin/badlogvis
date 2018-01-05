@@ -108,6 +108,23 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
     for i in 0..topics.len() {
         let topic: &Topic = &topics[i];
 
+        // Handle integral
+        {
+            if topic.attrs.contains(&Attribute::Integrate) {
+                let name = format!("{} Integral", topic.name);
+
+                let (_, name_base) = util::split_name(&name);
+
+                let mut unit = format!("{}*{}", topic.unit, if xaxis_index.is_some() { &topics[xaxis_index.unwrap()].unit } else { "Index" });
+
+                let (series, _total_sum) = gen_series(topic.data.clone(), name_base).integrate();
+
+                let graph = Graph::from_default(name, unit, x_unit.clone(), vec![series], false);
+
+                graphs.push(graph);
+            }
+        }
+
         // Handle derivative
         {
             if topic.attrs.contains(&Attribute::Differentiate) {

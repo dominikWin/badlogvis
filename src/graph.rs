@@ -126,4 +126,12 @@ impl Series {
             data: util::differention(&self.data),
         }
     }
+
+    pub fn integrate(&self) -> (Series, f64) {
+        let (data, total_area) = util::integration(&self.data);
+        (Series {
+            name: self.name.clone(),
+            data,
+        }, total_area)
+    }
 }

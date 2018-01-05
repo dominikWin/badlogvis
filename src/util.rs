@@ -69,3 +69,20 @@ pub fn differention(orig: &Vec<(f64, f64)>) -> Vec<(f64, f64)> {
     }
     out
 }
+
+pub fn integration(orig: &Vec<(f64, f64)>) -> (Vec<(f64, f64)>, f64) {
+    let mut out = Vec::with_capacity(orig.len() - 1);
+    let mut total_area = 0f64;
+    for i in 1..orig.len() {
+        // Trapazoid rule integration
+        let (x1, y1) = orig[i - 1];
+        let (x2, y2) = orig[i];
+        let delta_x = x2 - x1;
+        let average = (y1 + y2) / 2f64;
+        let area = delta_x * average;
+
+        total_area += area;
+        out.push((x1, total_area));
+     }
+    (out, total_area)
+}
