@@ -25,9 +25,6 @@ use attribute::Attribute;
 use graph::{Graph, Series};
 use input::*;
 
-use colored::*;
-
-
 pub const UNITLESS: &str = "ul";
 
 #[derive(StructOpt, Debug)]

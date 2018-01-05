@@ -1,9 +1,13 @@
 macro_rules! error {
     ($fmt:expr) => {
+        use std;
+        use colored::*;
         println!(concat!("{}: ", $fmt), "error".bold().red());
         std::process::exit(1);
     };
     ($fmt:expr, $($arg:tt)*) => {
+        use std;
+        use colored::*;
         println!(concat!("{}: ", $fmt), "error".bold().red(), $($arg)*);
         std::process::exit(1);
     };
@@ -11,9 +15,11 @@ macro_rules! error {
 
 macro_rules! warning {
     ($fmt:expr) => {
+        use colored::*;
         println!(concat!("{}: ", $fmt), "warning".bold().yellow());
     };
     ($fmt:expr, $($arg:tt)*) => {
+        use colored::*;
         println!(concat!("{}: ", $fmt), "warning".bold().yellow(), $($arg)*);
     };
 }
