@@ -10,7 +10,7 @@ pub struct Graph {
     pub x_unit: String,
     pub series: Vec<Series>,
     pub area: bool,
-    pub direct: bool,
+    pub virt: bool,
     pub zero: bool
 }
 
@@ -21,7 +21,7 @@ pub struct Series {
 }
 
 impl Graph {
-    pub fn from_default(name: String, unit: String, x_unit: String, series: Vec<Series>, direct: bool) -> Graph {
+    pub fn from_default(name: String, unit: String, x_unit: String, series: Vec<Series>, virt: bool) -> Graph {
         let (name_folder, name_base) = util::split_name(&name);
         Graph {
             name,
@@ -31,7 +31,7 @@ impl Graph {
             x_unit,
             series,
             area: false,
-            direct,
+            virt,
             zero: false,
         }
     }
@@ -79,10 +79,10 @@ impl Graph {
             "".to_string()
         };
 
-        let (gen_l, gen_r) = if self.direct {
-            ("".to_string(), "".to_string())
-        } else {
+        let (gen_l, gen_r) = if self.virt {
             ("[ ".to_string(), " ]".to_string())
+        } else {
+            ("".to_string(), "".to_string())
         };
 
         format!("\

@@ -113,7 +113,7 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
         if !topic.attrs.contains(&Attribute::Hide) {
             let series = gen_series(topic.data.clone(), topic.name_base.clone());
 
-            let mut graph = Graph::from_default(topic.name.clone(), topic.unit.clone(), x_unit.clone(), vec![series], true);
+            let mut graph = Graph::from_default(topic.name.clone(), topic.unit.clone(), x_unit.clone(), vec![series], false);
 
             graph.area = topic.attrs.contains(&Attribute::Area);
 
@@ -133,7 +133,7 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
 
                 let series = gen_series(topic.data.clone(), name_base).delta();
 
-                let graph = Graph::from_default(name, unit, x_unit.clone(), vec![series], false);
+                let graph = Graph::from_default(name, unit, x_unit.clone(), vec![series], true);
 
                 graphs.push(graph);
             }
@@ -150,7 +150,7 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
 
                 let series = gen_series(topic.data.clone(), name_base).differentiate();
 
-                let graph = Graph::from_default(name, unit, x_unit.clone(), vec![series], false);
+                let graph = Graph::from_default(name, unit, x_unit.clone(), vec![series], true);
 
                 graphs.push(graph);
             }
@@ -167,7 +167,7 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
 
                 let (series, _total_sum) = gen_series(topic.data.clone(), name_base).integrate();
 
-                let graph = Graph::from_default(name, unit, x_unit.clone(), vec![series], false);
+                let graph = Graph::from_default(name, unit, x_unit.clone(), vec![series], true);
 
                 graphs.push(graph);
             }
@@ -182,8 +182,8 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
                 let graph = {
                     let join_graph = graphs.iter_mut().filter(|g| g.name.eq(&join_graph_name)).last();
                     if let Some(join_graph) = join_graph {
-                        if join_graph.direct {
-                            error!("Attempting to join to direct graph {}", join_graph.name);
+                        if !join_graph.virt {
+                            error!("Attempting to join to non-virtual graph {}", join_graph.name);
                         }
 
                         let join_graph: &mut Graph = join_graph;
@@ -204,7 +204,7 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
                     } else {
                         let name = join_graph_name;
                         let series = gen_series(topic.data.clone(), topic.name_base.clone());
-                        let graph = Graph::from_default(name, topic.unit.clone(), x_unit.clone(), vec![series], false);
+                        let graph = Graph::from_default(name, topic.unit.clone(), x_unit.clone(), vec![series], true);
 
                         Option::Some(graph)
                     }
