@@ -4,6 +4,7 @@ pub enum Attribute {
     Area,
     Xaxis,
     Differentiate,
+    Zero,
     Join(String),
 }
 
@@ -20,6 +21,9 @@ impl Attribute {
         }
         if attribute_text.eq("differentiate") {
             return Result::Ok(Attribute::Differentiate);
+        }
+        if attribute_text.eq("zero") {
+            return Result::Ok(Attribute::Zero);
         }
         if attribute_text.starts_with("join:") {
             let (_, right) = attribute_text.split_at(5);

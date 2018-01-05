@@ -111,41 +111,6 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
     for i in 0..topics.len() {
         let topic: &Topic = &topics[i];
 
-        // Handle join
-        for attr in topic.attrs.iter() {
-            if let Attribute::Join(join_graph_name) = attr.clone() {
-                let graph = {
-                    let join_graph = graphs.iter_mut().filter(|g| g.name.eq(&join_graph_name)).filter(|g| !g.direct).last();
-                    if let Some(join_graph) = join_graph {
-                        let join_graph: &mut Graph = join_graph;
-
-                        if join_graph.series.iter().filter(|s| s.name.clone().unwrap().eq(&topic.name_base)).count() > 0 {
-                            warning!("Attempting to join multiple topics with same name: {}", topic.name_base);
-                        }
-
-                        if join_graph.unit.ne(&topic.unit) {
-                            warning!("Attempting to join different units: {} ({}) and {} ({})", join_graph.name, join_graph.unit.clone().unwrap_or("ul".to_string()), topic.name, topic.unit.clone().unwrap_or("ul".to_string()));
-                        }
-
-                        let series = gen_series(topic.data.clone(), Option::Some(topic.name_base.clone()));
-
-                        join_graph.series.push(series);
-
-                        Option::None
-                    } else {
-                        let name = join_graph_name;
-                        let series = gen_series(topic.data.clone(), Option::Some(topic.name_base.clone()));
-                        let graph = Graph::from_default(name, topic.unit.clone(), x_unit.clone(), vec![series], false);
-
-                        Option::Some(graph)
-                    }
-                };
-                if let Some(graph) = graph {
-                    graphs.push(graph);
-                }
-            }
-        }
-
         // Handle derivative
         {
             if topic.attrs.contains(&Attribute::Differentiate) {
@@ -176,8 +141,53 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
 
         graph.area = topic.attrs.contains(&Attribute::Area);
 
+        graph.zero = topic.attrs.contains(&Attribute::Zero);
+
         graphs.push(graph);
     }
+
+    // Joins need to run after all direct graphs are added so an invalid join can be detected
+    for topic in topics.iter() {
+        // Handle join
+        for attr in topic.attrs.iter() {
+            if let Attribute::Join(join_graph_name) = attr.clone() {
+                let graph = {
+                    let join_graph = graphs.iter_mut().filter(|g| g.name.eq(&join_graph_name)).last();
+                    if let Some(join_graph) = join_graph {
+                        if join_graph.direct {
+                            error!("Attempting to join to direct graph {}", join_graph.name);
+                        }
+
+                        let join_graph: &mut Graph = join_graph;
+
+                        if join_graph.series.iter().filter(|s| s.name.clone().unwrap().eq(&topic.name_base)).count() > 0 {
+                            warning!("Attempting to join multiple topics with same name: {}", topic.name_base);
+                        }
+
+                        if join_graph.unit.ne(&topic.unit) {
+                            warning!("Attempting to join different units: {} ({}) and {} ({})", join_graph.name, join_graph.unit.clone().unwrap_or("ul".to_string()), topic.name, topic.unit.clone().unwrap_or("ul".to_string()));
+                        }
+
+                        let series = gen_series(topic.data.clone(), Option::Some(topic.name_base.clone()));
+
+                        join_graph.series.push(series);
+
+                        Option::None
+                    } else {
+                        let name = join_graph_name;
+                        let series = gen_series(topic.data.clone(), Option::Some(topic.name_base.clone()));
+                        let graph = Graph::from_default(name, topic.unit.clone(), x_unit.clone(), vec![series], false);
+
+                        Option::Some(graph)
+                    }
+                };
+                if let Some(graph) = graph {
+                    graphs.push(graph);
+                }
+            }
+        }
+    }
+
     graphs
 }
 

@@ -11,6 +11,7 @@ pub struct Graph {
     pub series: Vec<Series>,
     pub area: bool,
     pub direct: bool,
+    pub zero: bool
 }
 
 #[derive(Debug)]
@@ -31,6 +32,7 @@ impl Graph {
             series,
             area: false,
             direct,
+            zero: false,
         }
     }
 
@@ -77,6 +79,14 @@ impl Graph {
 
         let graph_type = if self.area { "area" } else { "line" };
 
+        let min_y_text = if self.zero {
+            format!("yAxis: {{
+                min: {min_y}
+            }},", min_y = min_y)
+        } else {
+            "".to_string()
+        };
+
         format!("\
 <div id=\"{name}\" style=\"min-width: 310px; height: 400px; margin: 0 auto\"></div>
 <script>
@@ -91,9 +101,7 @@ impl Graph {
         subtitle: {{
             text: '{name}'
         }},
-        yAxis: {{
-            min: {min_y}
-        }},
+        {min_y_text}
         xAxis: {{
             events: {{
                 setExtremes: syncExtremes
@@ -108,7 +116,7 @@ impl Graph {
         series: [{series_content}]
     }});
 </script>\
-", name = self.name, unit = unit, title = self.name_base, graph_type = graph_type, min_y = min_y, x_unit = self.x_unit, series_content = series_content)
+", name = self.name, unit = unit, title = self.name_base, graph_type = graph_type, min_y_text = min_y_text, x_unit = self.x_unit, series_content = series_content)
     }
 }
 
