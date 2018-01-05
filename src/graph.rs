@@ -1,4 +1,5 @@
 use std::cmp::Ordering::Equal;
+use util;
 
 #[derive(Debug)]
 pub struct Graph {
@@ -19,6 +20,20 @@ pub struct Series {
 }
 
 impl Graph {
+    pub fn from_default(name: String, unit: Option<String>, x_unit: String, series: Vec<Series>, direct: bool) -> Graph {
+        let (name_folder, name_base) = util::split_name(&name);
+        Graph {
+            name,
+            name_base,
+            name_folder,
+            unit,
+            x_unit,
+            series,
+            area: false,
+            direct,
+        }
+    }
+
     pub fn gen_highchart(&self) -> String {
         let mut series_content = String::new();
         let mut min_y = 0f64;
@@ -94,5 +109,14 @@ impl Graph {
     }});
 </script>\
 ", name = self.name, unit = unit, title = self.name_base, graph_type = graph_type, min_y = min_y, x_unit = self.x_unit, series_content = series_content)
+    }
+}
+
+impl Series {
+    pub fn differentiate(&self) -> Series {
+        Series {
+            name: self.name.clone(),
+            data: util::differention(&self.data),
+        }
     }
 }
