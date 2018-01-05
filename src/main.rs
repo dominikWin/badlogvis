@@ -108,16 +108,30 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
     for i in 0..topics.len() {
         let topic: &Topic = &topics[i];
 
-        // Handle integral
+
+        // Handle direct
+        if !topic.attrs.contains(&Attribute::Hide) {
+            let series = gen_series(topic.data.clone(), topic.name_base.clone());
+
+            let mut graph = Graph::from_default(topic.name.clone(), topic.unit.clone(), x_unit.clone(), vec![series], true);
+
+            graph.area = topic.attrs.contains(&Attribute::Area);
+
+            graph.zero = topic.attrs.contains(&Attribute::Zero);
+
+            graphs.push(graph);
+        }
+
+        // Handle delta
         {
-            if topic.attrs.contains(&Attribute::Integrate) {
-                let name = format!("{} Integral", topic.name);
+            if topic.attrs.contains(&Attribute::Delta) {
+                let name = format!("{} Delta", topic.name);
 
                 let (_, name_base) = util::split_name(&name);
 
-                let mut unit = format!("{}*{}", topic.unit, if xaxis_index.is_some() { &topics[xaxis_index.unwrap()].unit } else { "Index" });
+                let unit = topic.unit.clone();
 
-                let (series, _total_sum) = gen_series(topic.data.clone(), name_base).integrate();
+                let series = gen_series(topic.data.clone(), name_base).delta();
 
                 let graph = Graph::from_default(name, unit, x_unit.clone(), vec![series], false);
 
@@ -142,36 +156,22 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
             }
         }
 
-        // Handle delta
+        // Handle integral
         {
-            if topic.attrs.contains(&Attribute::Delta) {
-                let name = format!("{} Delta", topic.name);
+            if topic.attrs.contains(&Attribute::Integrate) {
+                let name = format!("{} Integral", topic.name);
 
                 let (_, name_base) = util::split_name(&name);
 
-                let unit = topic.unit.clone();
+                let mut unit = format!("{}*{}", topic.unit, if xaxis_index.is_some() { &topics[xaxis_index.unwrap()].unit } else { "Index" });
 
-                let series = gen_series(topic.data.clone(), name_base).delta();
+                let (series, _total_sum) = gen_series(topic.data.clone(), name_base).integrate();
 
                 let graph = Graph::from_default(name, unit, x_unit.clone(), vec![series], false);
 
                 graphs.push(graph);
             }
         }
-
-        if topic.attrs.contains(&Attribute::Hide) {
-            continue;
-        }
-
-        let series = gen_series(topic.data.clone(), topic.name_base.clone());
-
-        let mut graph = Graph::from_default(topic.name.clone(), topic.unit.clone(), x_unit.clone(), vec![series], true);
-
-        graph.area = topic.attrs.contains(&Attribute::Area);
-
-        graph.zero = topic.attrs.contains(&Attribute::Zero);
-
-        graphs.push(graph);
     }
 
     // Joins need to run after all direct graphs are added so an invalid join can be detected
@@ -250,10 +250,10 @@ fn gen_folders(graphs: Vec<Graph>, values: Vec<Value>) -> Vec<Folder> {
         });
     }
 
-    for folder in folders.iter_mut() {
+//    for folder in folders.iter_mut() {
 //        folder.table.sort_by(|a, b| a.name_base.to_ascii_lowercase().cmp(&(b.name_base.to_ascii_lowercase())));
-        folder.graphs.sort_by(|a, b| a.name_base.to_ascii_lowercase().cmp(&b.name_base.to_ascii_lowercase()));
-    }
+//        folder.graphs.sort_by(|a, b| a.name_base.to_ascii_lowercase().cmp(&b.name_base.to_ascii_lowercase()));
+//    }
 
     folders.sort_by(|a, b| a.name.to_ascii_lowercase().cmp(&b.name.to_ascii_lowercase()));
 
