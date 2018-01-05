@@ -87,6 +87,12 @@ impl Graph {
             "".to_string()
         };
 
+        let (gen_l, gen_r) = if self.direct {
+            ("".to_string(), "".to_string())
+        } else {
+            ("[ ".to_string(), " ]".to_string())
+        };
+
         format!("\
 <div id=\"{name}\" style=\"min-width: 310px; height: 400px; margin: 0 auto\"></div>
 <script>
@@ -99,7 +105,7 @@ impl Graph {
             text: '{title}{unit}'
         }},
         subtitle: {{
-            text: '{name}'
+            text: '{generated_left}{name}{generated_right}'
         }},
         {min_y_text}
         xAxis: {{
@@ -116,7 +122,8 @@ impl Graph {
         series: [{series_content}]
     }});
 </script>\
-", name = self.name, unit = unit, title = self.name_base, graph_type = graph_type, min_y_text = min_y_text, x_unit = self.x_unit, series_content = series_content)
+", name = self.name, unit = unit, title = self.name_base, graph_type = graph_type, min_y_text = min_y_text, x_unit = self.x_unit,
+                series_content = series_content, generated_left = gen_l, generated_right = gen_r)
     }
 }
 
