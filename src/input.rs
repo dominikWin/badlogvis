@@ -121,12 +121,17 @@ pub fn parse_input(input: &str, opt: &Opt) -> (Vec<Topic>, Vec<Value>, String) {
                     let attrs: Vec<Attribute> = {
                         let mut attrs = Vec::new();
                         for attr_text in topic.attrs.iter() {
-                            let attr = Attribute::from(attr_text);
+                            let attr = Attribute::from(&attr_text);
                             if attr.is_err() {
                                 warning!("Failed to parse attribute {}, skipping it", attr_text);
                                 continue;
                             }
-                            attrs.push(attr.unwrap());
+                            let attr = attr.unwrap();
+                            if attrs.contains(&attr) {
+                                warning!("Duplicate attribute \"{}\" on topic {}, ignoring duplicate", attr_text, topic.name);
+                                continue;
+                            }
+                            attrs.push(attr);
                         }
                         attrs
                     };
