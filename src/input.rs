@@ -231,10 +231,18 @@ pub fn parse_input(input: &str, opt: &Opt) -> (Vec<Topic>, Vec<Value>, String) {
     };
 
     let values = {
-        let mut values = Vec::new();
+        let mut values: Vec<Value> = Vec::new();
 
         match parse_mode {
             ParseMode::Bag(json_header) => for value in json_header.values {
+                if let Some(duplicate) = values.iter().find(|v| v.name.eq(&value.name)) {
+                    if !duplicate.value.eq(&value.value) {
+                        error!("Duplicate value {} with different values", value.name);
+                    } else {
+                        warning!("Duplicate value {}, ignoring duplicate", value.name);
+                        continue;
+                    }
+                }
                 let (folder, base) = util::split_name(&value.name);
                 values.push(Value {
                     name: value.name,
