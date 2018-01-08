@@ -2,6 +2,7 @@
 name = "badlogvis"
 version = "0.1.0"
 authors = ["Dominik Winecki <dominikwinecki@gmail.com>"]
+readme = "README.md"
 
 [dependencies]
 structopt = "0.1.0"
