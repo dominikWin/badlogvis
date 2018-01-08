@@ -192,6 +192,12 @@ pub fn parse_input(input: &str, opt: &Opt) -> (Vec<Topic>, Vec<Value>, String) {
                 }
 
                 let topic = topics.iter_mut().filter(|g| g.name.eq(k)).last().unwrap();
+
+                // Don't parse if topic hidden and no derived graphs
+                if topic.attrs.len() == 1 && topic.attrs[0].eq(&Attribute::Hide) {
+                    continue;
+                }
+
                 let mut datapoint = v.to_string().parse::<f64>();
                 if datapoint.is_err() {
                     if trim_doubles {
@@ -201,7 +207,7 @@ pub fn parse_input(input: &str, opt: &Opt) -> (Vec<Topic>, Vec<Value>, String) {
                             error!("Failed to parse \"{}\" as a double", v);
                         }
                     } else {
-                        error!("Failed to parse \"{}\" as a double (maybe try --trim-doubles)", v);
+                        error!("Failed to parse \"{}\" as a double (maybe try --trim-doubles or hide topic)", v);
                     }
                 }
                 let datapoint = datapoint.unwrap();
