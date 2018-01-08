@@ -35,7 +35,7 @@ impl Attribute {
         }
         if attribute_text.starts_with("join:") {
             let (_, right) = attribute_text.split_at(5);
-            if right.len() == 0 {
+            if right.is_empty() {
                 error!("Failed to join topic: {}", attribute_text);
             }
             return Result::Ok(Attribute::Join(right.to_string()));

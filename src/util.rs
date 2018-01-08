@@ -25,9 +25,9 @@ macro_rules! warning {
 }
 
 pub fn split_name(name: &str) -> (String, String) {
-    let mut parts: Vec<&str> = name.split("/").collect();
+    let mut parts: Vec<&str> = name.split('/').collect();
 
-    assert!(parts.len() > 0);
+    assert!(!parts.is_empty());
 
     if parts.len() == 1 {
         return ("".to_string(), parts[0].to_string());
@@ -39,17 +39,15 @@ pub fn split_name(name: &str) -> (String, String) {
     (folder, base)
 }
 
-pub fn fake_x_axis(data: Vec<f64>) -> Vec<(f64, f64)> {
+pub fn fake_x_axis(data: &[f64]) -> Vec<(f64, f64)> {
     let mut points = Vec::with_capacity(data.len());
-    let mut x = 0;
-    for point in data {
-        points.push((x as f64, point));
-        x += 1;
+    for (x, point) in data.iter().enumerate() {
+        points.push((f64::from(x as u32), *point));
     }
     points
 }
 
-pub fn bind_axis(x: Vec<f64>, y: Vec<f64>) -> Vec<(f64, f64)> {
+pub fn bind_axis(x: &[f64], y: &[f64]) -> Vec<(f64, f64)> {
     assert_eq!(x.len(), y.len());
     let mut points = Vec::with_capacity(x.len());
     for i in 0..x.len() {
@@ -58,7 +56,7 @@ pub fn bind_axis(x: Vec<f64>, y: Vec<f64>) -> Vec<(f64, f64)> {
     points
 }
 
-pub fn differention(orig: &Vec<(f64, f64)>) -> Vec<(f64, f64)> {
+pub fn differention(orig: &[(f64, f64)]) -> Vec<(f64, f64)> {
     let mut out = Vec::with_capacity(orig.len() - 1);
     for i in 0..orig.len() - 1 {
         let (x1, y1) = orig[i];
@@ -70,7 +68,7 @@ pub fn differention(orig: &Vec<(f64, f64)>) -> Vec<(f64, f64)> {
     out
 }
 
-pub fn delta(orig: &Vec<(f64, f64)>) -> Vec<(f64, f64)> {
+pub fn delta(orig: &[(f64, f64)]) -> Vec<(f64, f64)> {
     let mut out = Vec::with_capacity(orig.len() - 1);
     for i in 0..orig.len() - 1 {
         let (x1, y1) = orig[i];
@@ -82,7 +80,7 @@ pub fn delta(orig: &Vec<(f64, f64)>) -> Vec<(f64, f64)> {
     out
 }
 
-pub fn integration(orig: &Vec<(f64, f64)>) -> (Vec<(f64, f64)>, f64) {
+pub fn integration(orig: &[(f64, f64)]) -> (Vec<(f64, f64)>, f64) {
     let mut out = Vec::with_capacity(orig.len() - 1);
     let mut total_area = 0f64;
     for i in 1..orig.len() {
@@ -95,6 +93,6 @@ pub fn integration(orig: &Vec<(f64, f64)>) -> (Vec<(f64, f64)>, f64) {
 
         total_area += area;
         out.push((x1, total_area));
-     }
+    }
     (out, total_area)
 }

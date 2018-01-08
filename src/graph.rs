@@ -22,7 +22,13 @@ pub struct Series {
 }
 
 impl Graph {
-    pub fn from_default(name: String, unit: String, x_unit: String, series: Vec<Series>, virt: bool) -> Graph {
+    pub fn from_default(
+        name: String,
+        unit: String,
+        x_unit: String,
+        series: Vec<Series>,
+        virt: bool,
+    ) -> Graph {
         let (name_folder, name_base) = util::split_name(&name);
         Graph {
             name,
@@ -41,28 +47,39 @@ impl Graph {
     pub fn gen_highchart(&self) -> String {
         let mut series_content = String::new();
         let mut min_y = 0f64;
-        for s in self.series.iter() {
-            let data: String = s.data.iter().map(|p| {
-                let (x, y) = *p;
-                format!("[{},{}]", x, y)
-            }).fold("".to_string(), |a, b| {
-                if a.len() == 0 {
-                    b.to_string()
-                } else {
-                    [a, b.to_string()].join(",")
-                }
-            });
-            let series_text = format!("{{
+        for s in &self.series {
+            let data: String = s.data
+                .iter()
+                .map(|p| {
+                    let (x, y) = *p;
+                    format!("[{},{}]", x, y)
+                })
+                .fold("".to_string(), |a, b| {
+                    if a.is_empty() {
+                        b.to_string()
+                    } else {
+                        [a, b.to_string()].join(",")
+                    }
+                });
+            let series_text = format!(
+                "{{
                 name: '{name}',
                 data: [{data}]
-            }},", name = s.name, data = data);
+            }},",
+                name = s.name,
+                data = data
+            );
 
             series_content += &series_text;
 
-            let min_y_local = s.data.iter().map(|p| {
-                let (_, y) = *p;
-                y
-            }).min_by(|a, b| a.partial_cmp(b).unwrap_or(Equal)).unwrap();
+            let min_y_local = s.data
+                .iter()
+                .map(|p| {
+                    let (_, y) = *p;
+                    y
+                })
+                .min_by(|a, b| a.partial_cmp(b).unwrap_or(Equal))
+                .unwrap();
 
             if min_y_local < min_y {
                 min_y = min_y_local;
@@ -74,9 +91,12 @@ impl Graph {
         let graph_type = if self.area { "area" } else { "line" };
 
         let min_y_text = if self.zero {
-            format!("yAxis: {{
+            format!(
+                "yAxis: {{
                 min: {min_y}
-            }},", min_y = min_y)
+            }},",
+                min_y = min_y
+            )
         } else {
             "".to_string()
         };
@@ -87,7 +107,8 @@ impl Graph {
             ("".to_string(), "".to_string())
         };
 
-        format!("\
+        format!(
+            "\
 <div id=\"{name}\" style=\"min-width: 310px; height: 400px; margin: 0 auto\"></div>
 <script>
     Highcharts.chart('{name}', {{
@@ -116,8 +137,17 @@ impl Graph {
         series: [{series_content}]
     }});
 </script>\
-", name = self.name, unit = unit, title = self.name_base, graph_type = graph_type, min_y_text = min_y_text, x_unit = self.x_unit,
-                series_content = series_content, generated_left = gen_l, generated_right = gen_r)
+",
+            name = self.name,
+            unit = unit,
+            title = self.name_base,
+            graph_type = graph_type,
+            min_y_text = min_y_text,
+            x_unit = self.x_unit,
+            series_content = series_content,
+            generated_left = gen_l,
+            generated_right = gen_r
+        )
     }
 }
 
@@ -131,10 +161,13 @@ impl Series {
 
     pub fn integrate(&self) -> (Series, f64) {
         let (data, total_area) = util::integration(&self.data);
-        (Series {
-            name: self.name.clone(),
-            data,
-        }, total_area)
+        (
+            Series {
+                name: self.name.clone(),
+                data,
+            },
+            total_area,
+        )
     }
 
     pub fn delta(&self) -> Series {

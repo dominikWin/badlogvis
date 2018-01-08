@@ -1,14 +1,14 @@
+extern crate base64;
+extern crate colored;
+extern crate csv;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
 extern crate structopt;
 #[macro_use]
 extern crate structopt_derive;
-extern crate serde;
-extern crate serde_json;
-#[macro_use]
-extern crate serde_derive;
 extern crate tempfile;
-extern crate csv;
-extern crate base64;
-extern crate colored;
 
 #[macro_use]
 mod util;
@@ -30,17 +30,15 @@ pub const UNITLESS: &str = "ul";
 #[derive(StructOpt, Debug)]
 #[structopt(name = "badlogvis", about = "Create html from badlog data")]
 pub struct Opt {
-    #[structopt(help = "Input file")]
-    input: String,
+    #[structopt(help = "Input file")] input: String,
 
-    #[structopt(help = "Output file, default to <input>.html")]
-    output: Option<String>,
+    #[structopt(help = "Output file, default to <input>.html")] output: Option<String>,
 
-    #[structopt(short = "t", long = "trim-doubles", help = "Retry parsing doubles without whitespace")]
+    #[structopt(short = "t", long = "trim-doubles",
+                help = "Retry parsing doubles without whitespace")]
     trim_doubles: bool,
 
-    #[structopt(short = "c", long = "csv", help = "Input is CSV file")]
-    csv: bool,
+    #[structopt(short = "c", long = "csv", help = "Input is CSV file")] csv: bool,
 }
 
 #[derive(Debug)]
@@ -54,11 +52,13 @@ fn main() {
     let opt: Opt = Opt::from_args();
 
     let input = opt.input.clone();
-    let output = opt.output.clone().unwrap_or(format!("{}.html", input));
+    let output = opt.output
+        .clone()
+        .unwrap_or_else(|| format!("{}.html", input));
 
     let (topics, values, csv_text) = parse_input(&input, &opt);
 
-    let graphs = gen_graphs(topics);
+    let graphs = gen_graphs(&topics);
 
     let folders: Vec<Folder> = gen_folders(graphs, values);
 
@@ -68,11 +68,10 @@ fn main() {
     outfile.write_all(out.as_bytes()).unwrap();
 }
 
-fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
+fn gen_graphs(topics: &[Topic]) -> Vec<Graph> {
     let xaxis_index: Option<usize> = {
         let mut out = Option::None;
-        for i in 0..topics.len() {
-            let topic: &Topic = &topics[i];
+        for (i, topic) in topics.iter().enumerate() {
             if topic.attrs.contains(&Attribute::Xaxis) {
                 if out.is_some() {
                     error!("Multiple topics with xaxis attribute");
@@ -94,26 +93,28 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
     let gen_series = |data: Vec<f64>, name: String| {
         let data = if let Some(x_index) = xaxis_index {
             let x_data = topics[x_index].data.clone();
-            util::bind_axis(x_data, data)
+            util::bind_axis(&x_data, &data)
         } else {
-            util::fake_x_axis(data)
+            util::fake_x_axis(&data)
         };
-        Series {
-            name,
-            data,
-        }
+        Series { name, data }
     };
 
     let mut graphs: Vec<Graph> = Vec::new();
     for i in 0..topics.len() {
         let topic: &Topic = &topics[i];
 
-
         // Handle direct
         if !topic.attrs.contains(&Attribute::Hide) {
             let series = gen_series(topic.data.clone(), topic.name_base.clone());
 
-            let mut graph = Graph::from_default(topic.name.clone(), topic.unit.clone(), x_unit.clone(), vec![series], false);
+            let mut graph = Graph::from_default(
+                topic.name.clone(),
+                topic.unit.clone(),
+                x_unit.clone(),
+                vec![series],
+                false,
+            );
 
             graph.area = topic.attrs.contains(&Attribute::Area);
 
@@ -146,7 +147,15 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
 
                 let (_, name_base) = util::split_name(&name);
 
-                let mut unit = format!("{}/{}", topic.unit, if xaxis_index.is_some() { &topics[xaxis_index.unwrap()].unit } else { "Index" });
+                let mut unit = format!(
+                    "{}/{}",
+                    topic.unit,
+                    if xaxis_index.is_some() {
+                        &topics[xaxis_index.unwrap()].unit
+                    } else {
+                        "Index"
+                    }
+                );
 
                 let series = gen_series(topic.data.clone(), name_base).differentiate();
 
@@ -163,7 +172,15 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
 
                 let (_, name_base) = util::split_name(&name);
 
-                let mut unit = format!("{}*{}", topic.unit, if xaxis_index.is_some() { &topics[xaxis_index.unwrap()].unit } else { "Index" });
+                let mut unit = format!(
+                    "{}*{}",
+                    topic.unit,
+                    if xaxis_index.is_some() {
+                        &topics[xaxis_index.unwrap()].unit
+                    } else {
+                        "Index"
+                    }
+                );
 
                 let (series, _total_sum) = gen_series(topic.data.clone(), name_base).integrate();
 
@@ -175,25 +192,45 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
     }
 
     // Joins need to run after all direct graphs are added so an invalid join can be detected
-    for topic in topics.iter() {
+    for topic in topics {
         // Handle join
-        for attr in topic.attrs.iter() {
+        for attr in &topic.attrs {
             if let Attribute::Join(join_graph_name) = attr.clone() {
                 let graph = {
-                    let join_graph = graphs.iter_mut().filter(|g| g.name.eq(&join_graph_name)).last();
+                    let join_graph = graphs
+                        .iter_mut()
+                        .filter(|g| g.name.eq(&join_graph_name))
+                        .last();
                     if let Some(join_graph) = join_graph {
                         if !join_graph.joinable {
-                            error!("Attempting to join to non-joinable graph {}", join_graph.name);
+                            error!(
+                                "Attempting to join to non-joinable graph {}",
+                                join_graph.name
+                            );
                         }
 
                         let join_graph: &mut Graph = join_graph;
 
-                        if join_graph.series.iter().filter(|s| s.name.eq(&topic.name_base)).count() > 0 {
-                            warning!("Attempting to join multiple topics with same name: {}", topic.name_base);
+                        if join_graph
+                            .series
+                            .iter()
+                            .filter(|s| s.name.eq(&topic.name_base))
+                            .count() > 0
+                        {
+                            warning!(
+                                "Attempting to join multiple topics with same name: {}",
+                                topic.name_base
+                            );
                         }
 
                         if join_graph.unit.ne(&topic.unit) {
-                            warning!("Attempting to join different units: {} ({}) and {} ({})", join_graph.name, join_graph.unit.clone(), topic.name, topic.unit.clone());
+                            warning!(
+                                "Attempting to join different units: {} ({}) and {} ({})",
+                                join_graph.name,
+                                join_graph.unit.clone(),
+                                topic.name,
+                                topic.unit.clone()
+                            );
                         }
 
                         let series = gen_series(topic.data.clone(), topic.name_base.clone());
@@ -204,7 +241,13 @@ fn gen_graphs(topics: Vec<Topic>) -> Vec<Graph> {
                     } else {
                         let name = join_graph_name;
                         let series = gen_series(topic.data.clone(), topic.name_base.clone());
-                        let mut graph = Graph::from_default(name, topic.unit.clone(), x_unit.clone(), vec![series], true);
+                        let mut graph = Graph::from_default(
+                            name,
+                            topic.unit.clone(),
+                            x_unit.clone(),
+                            vec![series],
+                            true,
+                        );
                         graph.joinable = true;
 
                         Option::Some(graph)
@@ -224,7 +267,7 @@ fn gen_folders(graphs: Vec<Graph>, values: Vec<Value>) -> Vec<Folder> {
     let mut folders: Vec<Folder> = Vec::new();
 
     'outer_topic: for graph in graphs {
-        for folder in folders.iter_mut() {
+        for folder in &mut folders {
             if folder.name.eq(&graph.name_folder) {
                 folder.graphs.push(graph);
                 continue 'outer_topic;
@@ -238,7 +281,7 @@ fn gen_folders(graphs: Vec<Graph>, values: Vec<Value>) -> Vec<Folder> {
     }
 
     'outer_value: for value in values {
-        for folder in folders.iter_mut() {
+        for folder in &mut folders {
             if folder.name.eq(&value.name_folder) {
                 folder.table.push(value);
                 continue 'outer_value;
@@ -251,12 +294,16 @@ fn gen_folders(graphs: Vec<Graph>, values: Vec<Value>) -> Vec<Folder> {
         });
     }
 
-//    for folder in folders.iter_mut() {
-//        folder.table.sort_by(|a, b| a.name_base.to_ascii_lowercase().cmp(&(b.name_base.to_ascii_lowercase())));
-//        folder.graphs.sort_by(|a, b| a.name_base.to_ascii_lowercase().cmp(&b.name_base.to_ascii_lowercase()));
-//    }
+    //    for folder in folders.iter_mut() {
+    //        folder.table.sort_by(|a, b| a.name_base.to_ascii_lowercase().cmp(&(b.name_base.to_ascii_lowercase())));
+    //        folder.graphs.sort_by(|a, b| a.name_base.to_ascii_lowercase().cmp(&b.name_base.to_ascii_lowercase()));
+    //    }
 
-    folders.sort_by(|a, b| a.name.to_ascii_lowercase().cmp(&b.name.to_ascii_lowercase()));
+    folders.sort_by(|a, b| {
+        a.name
+            .to_ascii_lowercase()
+            .cmp(&b.name.to_ascii_lowercase())
+    });
 
     folders
 }
@@ -265,15 +312,16 @@ impl Folder {
     pub fn gen_html(&self) -> String {
         let table = gen_table(&self.table);
         let mut graph_content = String::new();
-        for topic in self.graphs.iter() {
+        for topic in &self.graphs {
             graph_content += &topic.gen_highchart();
         }
 
-        if self.name.len() == 0 {
+        if self.name.is_empty() {
             return format!("{table}\n{graphs}", table = table, graphs = graph_content);
         }
 
-        format!("\
+        format!(
+            "\
   <div class=\"panel-group\">
     <div class=\"panel panel-default\">
       <div class=\"panel-heading\">
@@ -288,17 +336,25 @@ impl Folder {
         </div>
       </div>
     </div>
-  </div>", name = self.name, table = table, graphs = graph_content)
+  </div>",
+            name = self.name,
+            table = table,
+            graphs = graph_content
+        )
     }
 }
 
-fn gen_table(values: &Vec<Value>) -> String {
-    if values.len() == 0 {
+fn gen_table(values: &[Value]) -> String {
+    if values.is_empty() {
         return "<!-- Empty table omitted -->\n".to_string();
     }
     let mut rows = String::new();
     for value in values.iter() {
-        rows += &format!("<tr><td>{name}</td><td>{value}</td></tr>\n", name = value.name_base, value = value.value);
+        rows += &format!(
+            "<tr><td>{name}</td><td>{value}</td></tr>\n",
+            name = value.name_base,
+            value = value.value
+        );
     }
     format!("<table class=\"table table-striped\"><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody>\n{rows}</tbody></table>\n", rows = rows)
 }
@@ -395,7 +451,8 @@ fn gen_html(input: &str, folders: Vec<Folder>, csv_raw: &str) -> String {
 </html>
 \
     ", title = input, bootstrap_css = bootstrap_css_source, jquery_js = jquery_js_source, bootstrap_js = bootstrap_js_source,
-            highcharts_js = highcharts_js_source, boost_js = highcharts_boost_js_source, content = content,
-            csv_base64 = csv_base64, csv_filename = csv_filename, exporting_js = highcharts_exporting_js_source,
+            highcharts_js = highcharts_js_source, boost_js = highcharts_boost_js_source,
+            content = content, csv_base64 = csv_base64, csv_filename = csv_filename,
+            exporting_js = highcharts_exporting_js_source,
             offline_exporting_js = highcharts_offline_exporting_source)
 }
