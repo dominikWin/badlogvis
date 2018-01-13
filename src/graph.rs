@@ -48,19 +48,15 @@ impl Graph {
         let mut series_content = String::new();
         let mut min_y = 0f64;
         for s in &self.series {
-            let data: String = s.data
+            let data = s.data
                 .iter()
                 .map(|p| {
                     let (x, y) = *p;
                     format!("[{},{}]", x, y)
                 })
-                .fold("".to_string(), |a, b| {
-                    if a.is_empty() {
-                        b.to_string()
-                    } else {
-                        [a, b.to_string()].join(",")
-                    }
-                });
+                .collect::<Vec<String>>()
+                .join(",");
+
             let series_text = format!(
                 "{{
                 name: '{name}',
