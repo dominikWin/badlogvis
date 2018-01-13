@@ -177,3 +177,38 @@ impl Series {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use test::Bencher;
+    use std::f64;
+
+    #[bench]
+    fn bench_gen_highchart_100_000(b: &mut Bencher) {
+        let data = {
+            let mut data = Vec::with_capacity(100_000);
+            for i in 0..100_000 {
+                let point = (
+                    (i as f64) * f64::consts::PI,
+                    (i as f64) * f64::consts::PI * f64::consts::E,
+                );
+                data.push(point);
+            }
+            data
+        };
+        let series = Series {
+            name: "Series".to_string(),
+            data,
+        };
+        let graph = Graph::from_default(
+            "test".to_string(),
+            "unit".to_string(),
+            "time".to_string(),
+            vec![series],
+            false,
+        );
+
+        b.iter(|| graph.gen_highchart());
+    }
+}

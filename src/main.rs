@@ -1,3 +1,5 @@
+#![feature(test)]
+
 extern crate base64;
 extern crate colored;
 extern crate csv;
@@ -9,6 +11,8 @@ extern crate structopt;
 #[macro_use]
 extern crate structopt_derive;
 extern crate tempfile;
+
+extern crate test;
 
 #[macro_use]
 mod util;
