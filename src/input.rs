@@ -77,13 +77,8 @@ pub fn parse_input(input: &str, opt: &Opt) -> (Vec<Topic>, Vec<Value>, String) {
         let csv_text = input_file_contents
             .lines()
             .skip(1)
-            .fold("".to_string(), |a, b| {
-                if a.is_empty() {
-                    b.to_string()
-                } else {
-                    [a, b.to_string()].join("\n")
-                }
-            });
+            .collect::<Vec<&str>>()
+            .join("\n");
 
         let json_header_text = input_file_contents
             .lines()
