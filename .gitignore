@@ -13,3 +13,4 @@ Cargo.lock
 *.test
 *.html
 *.bag
+*.csv
