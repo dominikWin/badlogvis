@@ -11,6 +11,7 @@ extern crate structopt;
 #[macro_use]
 extern crate structopt_derive;
 extern crate tempfile;
+extern crate flate2;
 
 extern crate test;
 
@@ -43,6 +44,8 @@ pub struct Opt {
     trim_doubles: bool,
 
     #[structopt(short = "c", long = "csv", help = "Input is CSV file")] csv: bool,
+
+    #[structopt(short = "g", long = "gzip", help = "Compress embeded CSV file")] compress_csv: bool,
 }
 
 #[derive(Debug)]
@@ -50,6 +53,11 @@ struct Folder {
     pub name: String,
     pub table: Vec<Value>,
     pub graphs: Vec<Graph>,
+}
+
+enum CsvEmbed {
+    Raw(String),
+    Compressed(Vec<u8>),
 }
 
 fn main() {
@@ -66,7 +74,19 @@ fn main() {
 
     let folders: Vec<Folder> = gen_folders(graphs, values);
 
-    let out = gen_html(&input, folders, &csv_text);
+    let csv_embed = if opt.compress_csv {
+        use flate2::write::GzEncoder;
+        use flate2::Compression;
+        use std::io::prelude::*;
+
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write(csv_text.as_bytes()).unwrap();
+        CsvEmbed::Compressed(encoder.finish().unwrap())
+    } else {
+        CsvEmbed::Raw(csv_text)
+    };
+
+    let out = gen_html(&input, folders, &csv_embed);
 
     let mut outfile = File::create(output).unwrap();
     outfile.write_all(out.as_bytes()).unwrap();
@@ -363,7 +383,7 @@ fn gen_table(values: &[Value]) -> String {
     format!("<table class=\"table table-striped\"><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody>\n{rows}</tbody></table>\n", rows = rows)
 }
 
-fn gen_html(input: &str, folders: Vec<Folder>, csv_raw: &str) -> String {
+fn gen_html(input: &str, folders: Vec<Folder>, csv_embed: &CsvEmbed) -> String {
     let bootstrap_css_source = include_str!("web_res/bootstrap.min.css");
     let jquery_js_source = include_str!("web_res/jquery-3.2.1.min.js");
     let bootstrap_js_source = include_str!("web_res/bootstrap.min.js");
@@ -372,8 +392,11 @@ fn gen_html(input: &str, folders: Vec<Folder>, csv_raw: &str) -> String {
     let highcharts_exporting_js_source = include_str!("web_res/exporting.js");
     let highcharts_offline_exporting_source = include_str!("web_res/offline-exporting.js");
 
-    let csv_base64 = base64::encode(csv_raw);
-    let csv_filename = format!("{}.csv", input);
+    let (csv_base64, extention) = match csv_embed {
+        &CsvEmbed::Raw(ref csv_raw) => (base64::encode(csv_raw), "csv"),
+        &CsvEmbed::Compressed(ref data) => (base64::encode(data), "csv.gz"),
+    };
+    let csv_filename = format!("{}.{}", input, extention);
 
     let mut content = String::new();
 
@@ -446,7 +469,7 @@ fn gen_html(input: &str, folders: Vec<Folder>, csv_raw: &str) -> String {
   <body>
     <div class=\"container\">
       <div class=\"page-header\">
-        <h1>{title} <a href=\"data:text/csv;base64,{csv_base64}\" download=\"{csv_filename}\" class=\"btn btn-default btn-md\">Download CSV</a></h1>
+        <h1>{title} <a href=\"data:text/csv;base64,{csv_base64}\" download=\"{csv_filename}\" class=\"btn btn-default btn-md\">Download {extention}</a></h1>
       </div>
 
       {content}
@@ -458,5 +481,5 @@ fn gen_html(input: &str, folders: Vec<Folder>, csv_raw: &str) -> String {
             highcharts_js = highcharts_js_source, boost_js = highcharts_boost_js_source,
             content = content, csv_base64 = csv_base64, csv_filename = csv_filename,
             exporting_js = highcharts_exporting_js_source,
-            offline_exporting_js = highcharts_offline_exporting_source)
+            offline_exporting_js = highcharts_offline_exporting_source, extention = extention.to_string().to_uppercase())
 }
