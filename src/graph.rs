@@ -177,8 +177,8 @@ impl Series {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test::Bencher;
     use std::f64;
+    use test::Bencher;
 
     #[bench]
     fn bench_gen_highchart_100_000(b: &mut Bencher) {

@@ -3,6 +3,7 @@
 extern crate base64;
 extern crate colored;
 extern crate csv;
+extern crate flate2;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
@@ -11,7 +12,6 @@ extern crate structopt;
 #[macro_use]
 extern crate structopt_derive;
 extern crate tempfile;
-extern crate flate2;
 
 extern crate test;
 
@@ -35,17 +35,22 @@ pub const UNITLESS: &str = "ul";
 #[derive(StructOpt, Debug)]
 #[structopt(name = "badlogvis", about = "Create html from badlog data")]
 pub struct Opt {
-    #[structopt(help = "Input file")] input: String,
+    #[structopt(help = "Input file")]
+    input: String,
 
-    #[structopt(help = "Output file, default to <input>.html")] output: Option<String>,
+    #[structopt(help = "Output file, default to <input>.html")]
+    output: Option<String>,
 
-    #[structopt(short = "t", long = "trim-doubles",
-                help = "Retry parsing doubles without whitespace")]
+    #[structopt(
+        short = "t", long = "trim-doubles", help = "Retry parsing doubles without whitespace"
+    )]
     trim_doubles: bool,
 
-    #[structopt(short = "c", long = "csv", help = "Input is CSV file")] csv: bool,
+    #[structopt(short = "c", long = "csv", help = "Input is CSV file")]
+    csv: bool,
 
-    #[structopt(short = "g", long = "gzip", help = "Compress embeded CSV file")] compress_csv: bool,
+    #[structopt(short = "g", long = "gzip", help = "Compress embeded CSV file")]
+    compress_csv: bool,
 }
 
 #[derive(Debug)]

@@ -1,14 +1,14 @@
 use attribute::Attribute;
 
-use util;
 use csv;
+use util;
 
 use Opt;
 
+use serde_json;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::SeekFrom;
-use serde_json;
 use tempfile;
 
 #[derive(Serialize, Deserialize, Debug)]
