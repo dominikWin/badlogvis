@@ -104,8 +104,8 @@ impl Graph {
         };
 
         format!(
-            "\
-<div id=\"{name}\" style=\"min-width: 310px; height: 400px; margin: 0 auto\"></div>
+            r#"
+<div id="{name}" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
 <script>
     Highcharts.chart('{name}', {{
         chart: {{
@@ -132,8 +132,8 @@ impl Graph {
         }},
         series: [{series_content}]
     }});
-</script>\
-",
+</script>
+"#,
             name = self.name,
             unit = unit,
             title = self.name_base,

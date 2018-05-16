@@ -325,11 +325,6 @@ fn gen_folders(graphs: Vec<Graph>, values: Vec<Value>) -> Vec<Folder> {
         });
     }
 
-    //    for folder in folders.iter_mut() {
-    //        folder.table.sort_by(|a, b| a.name_base.to_ascii_lowercase().cmp(&(b.name_base.to_ascii_lowercase())));
-    //        folder.graphs.sort_by(|a, b| a.name_base.to_ascii_lowercase().cmp(&b.name_base.to_ascii_lowercase()));
-    //    }
-
     folders.sort_by(|a, b| {
         a.name
             .to_ascii_lowercase()
@@ -352,22 +347,22 @@ impl Folder {
         }
 
         format!(
-            "\
-  <div class=\"panel-group\">
-    <div class=\"panel panel-default\">
-      <div class=\"panel-heading\">
-        <h4 class=\"panel-title\">
-          <a data-toggle=\"collapse\" href=\"#collapse_{name}\">{name}</a>
+            r##"
+  <div class="panel-group">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h4 class="panel-title">
+          <a data-toggle="collapse" href="#collapse_{name}">{name}</a>
         </h4>
       </div>
-      <div id=\"collapse_{name}\" class=\"panel-collapse collapse\">
-        <div class=\"panel-body\">
+      <div id="collapse_{name}" class="panel-collapse collapse">
+        <div class="panel-body">
           {table}
           {graphs}
         </div>
       </div>
     </div>
-  </div>",
+  </div>"##,
             name = self.name,
             table = table,
             graphs = graph_content
@@ -387,7 +382,7 @@ fn gen_table(values: &[Value]) -> String {
             value = value.value
         );
     }
-    format!("<table class=\"table table-striped\"><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody>\n{rows}</tbody></table>\n", rows = rows)
+    format!(r#"<table class="table table-striped"><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody>{rows}</tbody></table>"#, rows = rows)
 }
 
 fn gen_html(
@@ -417,21 +412,21 @@ fn gen_html(
     }
 
     let json_header = if let Some(header) = json_header {
-        format!("<div class=\"well\">{}</div>", header)
+        format!(r#"<div class="well">{}</div>"#, header)
     } else {
         "".to_string()
     };
 
-    format!("\
+    format!(r##"\
 <!DOCTYPE html>
-<html lang=\"en\">
+<html lang="en">
   <head>
-    <meta charset=\"utf-8\">
-    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>BadLog - {title}</title>
 
     <!-- bootstrap.min.css -->
-    <style type=\"text/css\">
+    <style type="text/css">
         {bootstrap_css}
     </style>
 
@@ -485,23 +480,21 @@ fn gen_html(
   </head>
 
   <body>
-    <div class=\"container\">
-      <div class=\"page-header\">
-        <h1>{title} <a href=\"data:text/csv;base64,{csv_base64}\" download=\"{csv_filename}\" class=\"btn btn-default btn-md\">Download {extention}</a></h1>
+    <div class="container">
+      <div class="page-header">
+        <h1>{title} <a href="data:text/csv;base64,{csv_base64}" download="{csv_filename}" class="btn btn-default btn-md">Download {extention}</a></h1>
       </div>
 
       {content}
 
-      <a style=\"color: grey; text-decoration: underline;\" data-toggle=\"collapse\" href=\"#metadata\" aria-expanded=\"false\" aria-controls=\"metadata\">Info</a>
-      <div class=\"collapse\" id=\"metadata\">
+      <a style="color: grey; text-decoration: underline;" data-toggle="collapse" href="#metadata" aria-expanded="false" aria-controls="metadata">Info</a>
+      <div class="collapse" id="metadata">
         {json_header}
         <p>badlogvis {badlogvis_version}</p>
       </div>
     </div> <!-- /container -->
   </body>
-</html>
-\
-    ", title = input, bootstrap_css = bootstrap_css_source, jquery_js = jquery_js_source, bootstrap_js = bootstrap_js_source,
+</html>"##, title = input, bootstrap_css = bootstrap_css_source, jquery_js = jquery_js_source, bootstrap_js = bootstrap_js_source,
             highcharts_js = highcharts_js_source, boost_js = highcharts_boost_js_source,
             content = content, csv_base64 = csv_base64, csv_filename = csv_filename,
             exporting_js = highcharts_exporting_js_source,
