@@ -27,6 +27,7 @@ use graph::{Graph, Series};
 use input::*;
 
 pub const UNITLESS: &str = "ul";
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "badlogvis", about = "Create html from badlog data")]
@@ -69,7 +70,7 @@ fn main() {
         .clone()
         .unwrap_or_else(|| format!("{}.html", input));
 
-    let (topics, values, csv_text) = parse_input(&input, &opt);
+    let (topics, values, csv_text, json_header) = parse_input(&input, &opt);
 
     let graphs = gen_graphs(&topics);
 
@@ -87,7 +88,12 @@ fn main() {
         CsvEmbed::Raw(csv_text)
     };
 
-    let out = gen_html(&input, folders, &csv_embed);
+    let out = gen_html(
+        &input,
+        folders,
+        &csv_embed,
+        json_header.as_ref().map(String::as_str),
+    );
 
     let mut outfile = File::create(output).unwrap();
     outfile.write_all(out.as_bytes()).unwrap();
@@ -384,7 +390,12 @@ fn gen_table(values: &[Value]) -> String {
     format!("<table class=\"table table-striped\"><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody>\n{rows}</tbody></table>\n", rows = rows)
 }
 
-fn gen_html(input: &str, folders: Vec<Folder>, csv_embed: &CsvEmbed) -> String {
+fn gen_html(
+    input: &str,
+    folders: Vec<Folder>,
+    csv_embed: &CsvEmbed,
+    json_header: Option<&str>,
+) -> String {
     let bootstrap_css_source = include_str!("web_res/bootstrap.min.css");
     let jquery_js_source = include_str!("web_res/jquery-3.2.1.min.js");
     let bootstrap_js_source = include_str!("web_res/bootstrap.min.js");
@@ -404,6 +415,12 @@ fn gen_html(input: &str, folders: Vec<Folder>, csv_embed: &CsvEmbed) -> String {
     for folder in folders {
         content += &folder.gen_html();
     }
+
+    let json_header = if let Some(header) = json_header {
+        format!("<div class=\"well\">{}</div>", header)
+    } else {
+        "".to_string()
+    };
 
     format!("\
 <!DOCTYPE html>
@@ -474,6 +491,12 @@ fn gen_html(input: &str, folders: Vec<Folder>, csv_embed: &CsvEmbed) -> String {
       </div>
 
       {content}
+
+      <a style=\"color: grey; text-decoration: underline;\" data-toggle=\"collapse\" href=\"#metadata\" aria-expanded=\"false\" aria-controls=\"metadata\">Info</a>
+      <div class=\"collapse\" id=\"metadata\">
+        {json_header}
+        <p>badlogvis {badlogvis_version}</p>
+      </div>
     </div> <!-- /container -->
   </body>
 </html>
@@ -482,5 +505,6 @@ fn gen_html(input: &str, folders: Vec<Folder>, csv_embed: &CsvEmbed) -> String {
             highcharts_js = highcharts_js_source, boost_js = highcharts_boost_js_source,
             content = content, csv_base64 = csv_base64, csv_filename = csv_filename,
             exporting_js = highcharts_exporting_js_source,
-            offline_exporting_js = highcharts_offline_exporting_source, extention = extention.to_string().to_uppercase())
+            offline_exporting_js = highcharts_offline_exporting_source, extention = extention.to_string().to_uppercase(),
+            badlogvis_version = VERSION, json_header = json_header)
 }

@@ -54,7 +54,7 @@ pub enum ParseMode {
     Csv,
 }
 
-pub fn parse_input(input: &str, opt: &Opt) -> (Vec<Topic>, Vec<Value>, String) {
+pub fn parse_input(input: &str, opt: &Opt) -> (Vec<Topic>, Vec<Value>, String, Option<String>) {
     let input = input.to_string();
     let input_file_contents: String = {
         let mut f = File::open(input.clone());
@@ -71,8 +71,8 @@ pub fn parse_input(input: &str, opt: &Opt) -> (Vec<Topic>, Vec<Value>, String) {
         contents
     };
 
-    let (parse_mode, csv_text) = if opt.csv {
-        (ParseMode::Csv, input_file_contents)
+    let (parse_mode, csv_text, json_header) = if opt.csv {
+        (ParseMode::Csv, input_file_contents, Option::None)
     } else {
         let csv_text = input_file_contents
             .lines()
@@ -94,7 +94,11 @@ pub fn parse_input(input: &str, opt: &Opt) -> (Vec<Topic>, Vec<Value>, String) {
             );
         }
         let json_header = json_header.unwrap();
-        (ParseMode::Bag(json_header), csv_text)
+        (
+            ParseMode::Bag(json_header),
+            csv_text,
+            Option::Some(json_header_text),
+        )
     };
 
     let mut csv_reader: csv::Reader<File> = if opt.csv {
@@ -252,5 +256,5 @@ pub fn parse_input(input: &str, opt: &Opt) -> (Vec<Topic>, Vec<Value>, String) {
         values
     };
 
-    (topics, values, csv_text)
+    (topics, values, csv_text, json_header)
 }
