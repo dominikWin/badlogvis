@@ -6,26 +6,27 @@ use util;
 use Opt;
 
 use serde_json;
-use std::fs::File;
-use std::io::prelude::*;
+use std::convert::From;
+use std::fs::{self, File};
 use std::io::SeekFrom;
+use std::io::prelude::*;
 use tempfile;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct JSONTopic {
+struct JSONTopic {
     pub name: String,
     pub unit: String,
     pub attrs: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct JSONValue {
+struct JSONValue {
     pub name: String,
     pub value: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct JSONHeader {
+struct JSONHeader {
     pub topics: Vec<JSONTopic>,
     pub values: Vec<JSONValue>,
 }
@@ -49,60 +50,161 @@ pub struct Value {
 }
 
 #[derive(Debug)]
-pub enum ParseMode {
+pub struct Input {
+    pub topics: Vec<Topic>,
+    pub values: Vec<Value>,
+    pub json_header: Option<String>,
+    pub csv_text: String,
+}
+
+impl<'a> From<&'a JSONValue> for Value {
+    fn from(value: &'a JSONValue) -> Self {
+        let (folder, base) = util::split_name(&value.name);
+        Value {
+            name: value.name.clone(),
+            name_base: base,
+            name_folder: folder,
+            value: value.value.clone(),
+        }
+    }
+}
+
+impl<'a> From<&'a JSONTopic> for Topic {
+    fn from(topic: &'a JSONTopic) -> Self {
+        let (folder, base) = util::split_name(&topic.name);
+        let unit = if topic.unit.is_empty() {
+            ::UNITLESS.to_string()
+        } else {
+            topic.unit.clone()
+        };
+
+        let attrs: Vec<Attribute> = topic.get_attrs();
+
+        Topic {
+            name: topic.name.clone(),
+            name_base: base,
+            name_folder: folder,
+            unit,
+            attrs,
+            data: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug)]
+enum ParseMode {
     Bag(JSONHeader),
     Csv,
 }
 
-pub fn parse_input(input: &str, opt: &Opt) -> (Vec<Topic>, Vec<Value>, String, Option<String>) {
-    let input = input.to_string();
-    let input_file_contents: String = {
-        let mut f = File::open(input.clone());
-        if f.is_err() {
-            error!(
-                "Failed to open file \"{}\": {}",
-                input,
-                f.unwrap_err().to_string()
-            );
+impl JSONTopic {
+    fn get_attrs(&self) -> Vec<Attribute> {
+        let mut attrs = Vec::new();
+        for attr_text in &self.attrs {
+            let attr = Attribute::from(&attr_text);
+            if attr.is_err() {
+                warning!("Failed to parse attribute {}, skipping it", attr_text);
+                continue;
+            }
+            let attr = attr.unwrap();
+            if attrs.contains(&attr) {
+                warning!(
+                    "Duplicate attribute \"{}\" on topic {}, ignoring duplicate",
+                    attr_text,
+                    self.name
+                );
+                continue;
+            }
+            attrs.push(attr);
         }
-        let mut f = f.unwrap();
-        let mut contents = String::new();
-        f.read_to_string(&mut contents).unwrap();
-        contents
+        attrs
+    }
+}
+impl JSONHeader {
+    fn get_values(&self) -> Vec<Value> {
+        let mut values: Vec<Value> = Vec::new();
+        for value in &self.values {
+            if let Some(duplicate) = values.iter().find(|v| v.name.eq(&value.name)) {
+                if !duplicate.value.eq(&value.value) {
+                    error!("Duplicate value {} with different values", value.name);
+                } else {
+                    warning!("Duplicate value {}, ignoring duplicate", value.name);
+                    continue;
+                }
+            }
+            values.push(Value::from(value));
+        }
+        values
+    }
+
+    fn get_topics(&self) -> Vec<Topic> {
+        let mut topics: Vec<Topic> = Vec::new();
+        for topic in &self.topics {
+            if topics.iter().filter(|g| g.name.eq(&topic.name)).count() > 0 {
+                error!("Duplicate topic entry in JSON header for {}", &topic.name);
+            }
+            topics.push(Topic::from(topic));
+        }
+        topics
+    }
+}
+
+fn get_topics_from_csv(header: &csv::StringRecord) -> Vec<Topic> {
+    let mut topics: Vec<Topic> = Vec::new();
+    for topic in header.iter() {
+        let name = topic.to_string();
+
+        if name.ne(&name.trim()) {
+            warning!("Topic \"{}\" has exterior whitespace", name);
+        }
+
+        if topics.iter().filter(|g| g.name.eq(&name)).count() > 0 {
+            error!("Duplicate topic entry in CSV header for {}", name);
+        }
+        let (folder, base) = util::split_name(&name);
+        let mut topic = Topic {
+            name,
+            name_base: base,
+            name_folder: folder,
+            unit: ::UNITLESS.to_string(),
+            attrs: Vec::new(),
+            data: Vec::new(),
+        };
+        topics.push(topic);
+    }
+    topics
+}
+
+pub fn parse_input(input_path: &str, opt: &Opt) -> Input {
+    let input_file_contents: String = match fs::read_to_string(input_path) {
+        Ok(contents) => contents,
+        Err(f) => error!("Failed to open file \"{}\": {}", input_path, f.to_string()),
     };
 
     let (parse_mode, csv_text, json_header) = if opt.csv {
         (ParseMode::Csv, input_file_contents, Option::None)
     } else {
-        let csv_text = input_file_contents
-            .lines()
-            .skip(1)
-            .collect::<Vec<&str>>()
-            .join("\n");
+        let mut parts: Vec<&str> = input_file_contents.split('\n').collect();
 
-        let json_header_text = input_file_contents
-            .lines()
-            .take(1)
-            .last()
-            .unwrap()
-            .to_string(); // First line
+        let json_header_text = parts.remove(0).to_string();
+        let csv_text = parts.join("\n");
+
         let json_header = serde_json::from_str(&json_header_text);
-        if json_header.is_err() {
-            error!(
+        match json_header {
+            Err(e) => error!(
                 "Failed to parse json header: {} (if its a CSV file use --csv)",
-                json_header.unwrap_err().to_string()
-            );
+                e.to_string()
+            ),
+            Ok(json_header) => (
+                ParseMode::Bag(json_header),
+                csv_text,
+                Option::Some(json_header_text),
+            ),
         }
-        let json_header = json_header.unwrap();
-        (
-            ParseMode::Bag(json_header),
-            csv_text,
-            Option::Some(json_header_text),
-        )
     };
 
     let mut csv_reader: csv::Reader<File> = if opt.csv {
-        csv::Reader::from_path(&input).unwrap()
+        csv::Reader::from_path(input_path).unwrap()
     } else {
         let mut tempfile = tempfile::tempfile().unwrap();
         tempfile.write_all(csv_text.as_bytes()).unwrap();
@@ -112,97 +214,26 @@ pub fn parse_input(input: &str, opt: &Opt) -> (Vec<Topic>, Vec<Value>, String, O
 
     let trim_doubles = opt.trim_doubles;
     let topics = {
-        let mut topics: Vec<Topic> = Vec::new();
+        let csv_header = { csv_reader.headers().unwrap().clone() };
 
-        let header = { csv_reader.headers().unwrap().clone() };
-
-        match parse_mode {
-            ParseMode::Bag(ref json_header) => for topic in &json_header.topics {
-                if topics.iter().filter(|g| g.name.eq(&topic.name)).count() > 0 {
-                    error!("Duplicate topic entry in JSON header for {}", &topic.name);
-                }
-                let (folder, base) = util::split_name(&topic.name);
-                let unit = if topic.unit.is_empty() {
-                    ::UNITLESS.to_string()
-                } else {
-                    topic.unit.clone()
-                };
-
-                let attrs: Vec<Attribute> = {
-                    let mut attrs = Vec::new();
-                    for attr_text in &topic.attrs {
-                        let attr = Attribute::from(attr_text);
-                        if attr.is_err() {
-                            warning!("Failed to parse attribute {}, skipping it", attr_text);
-                            continue;
-                        }
-                        let attr = attr.unwrap();
-                        if attrs.contains(&attr) {
-                            warning!(
-                                "Duplicate attribute \"{}\" on topic {}, ignoring duplicate",
-                                attr_text,
-                                topic.name
-                            );
-                            continue;
-                        }
-                        attrs.push(attr);
-                    }
-                    attrs
-                };
-
-                let mut topic = Topic {
-                    name: topic.name.clone(),
-                    name_base: base,
-                    name_folder: folder,
-                    unit,
-                    attrs,
-                    data: Vec::new(),
-                };
-                topics.push(topic);
-            },
-            ParseMode::Csv => for topic in header.iter() {
-                let name = topic.to_string();
-
-                if name.ne(&name.trim()) {
-                    warning!("Topic \"{}\" has exterior whitespace", name);
-                }
-
-                if topics.iter().filter(|g| g.name.eq(&name)).count() > 0 {
-                    error!("Duplicate topic entry in CSV header for {}", name);
-                }
-                let (folder, base) = util::split_name(&name);
-                let mut topic = Topic {
-                    name,
-                    name_base: base,
-                    name_folder: folder,
-                    unit: ::UNITLESS.to_string(),
-                    attrs: Vec::new(),
-                    data: Vec::new(),
-                };
-                topics.push(topic);
-            },
-        }
+        let mut topics = match parse_mode {
+            ParseMode::Bag(ref json_header) => json_header.get_topics(),
+            ParseMode::Csv => get_topics_from_csv(&csv_header),
+        };
 
         for row in csv_reader.records() {
-            if row.is_err() {
-                error!("{}", &row.unwrap_err().to_string());
-            }
-            let row = row.unwrap();
+            let row = match row {
+                Err(e) => error!("{}", e.to_string()),
+                Ok(row) => row,
+            };
 
-            for i in 0..header.len() {
-                let (k, v) = (&header[i], &row[i]);
+            for i in 0..csv_header.len() {
+                let (k, v) = (&csv_header[i], &row[i]);
 
-                {
-                    let count = topics.iter().filter(|g| g.name.eq(k)).count();
-                    if count != 1 {
-                        if count > 1 {
-                            panic!();
-                        }
-                        error!("Can't find topic {} in JSON header", k);
-                    }
-                }
-
-                let topic = topics.iter_mut().filter(|g| g.name.eq(k)).last().unwrap();
+                let mut topic = match topics.iter_mut().filter(|g| g.name.eq(k)).last() {
+                    Some(t) => t,
+                    None => error!("Can't find topic {} in JSON header", k),
+                };
 
                 // Don't parse if topic hidden and no derived graphs
                 if topic.attrs.len() == 1 && topic.attrs[0].eq(&Attribute::Hide) {
@@ -229,32 +260,15 @@ pub fn parse_input(input: &str, opt: &Opt) -> (Vec<Topic>, Vec<Value>, String, O
         topics
     };
 
-    let values = {
-        let mut values: Vec<Value> = Vec::new();
-
-        match parse_mode {
-            ParseMode::Bag(json_header) => for value in json_header.values {
-                if let Some(duplicate) = values.iter().find(|v| v.name.eq(&value.name)) {
-                    if !duplicate.value.eq(&value.value) {
-                        error!("Duplicate value {} with different values", value.name);
-                    } else {
-                        warning!("Duplicate value {}, ignoring duplicate", value.name);
-                        continue;
-                    }
-                }
-                let (folder, base) = util::split_name(&value.name);
-                values.push(Value {
-                    name: value.name,
-                    name_base: base,
-                    name_folder: folder,
-                    value: value.value,
-                });
-            },
-            ParseMode::Csv => {}
-        }
-
-        values
+    let values = match parse_mode {
+        ParseMode::Bag(json_header) => json_header.get_values(),
+        ParseMode::Csv => Vec::new(),
     };
 
-    (topics, values, csv_text, json_header)
+    Input {
+        topics,
+        values,
+        json_header,
+        csv_text,
+    }
 }

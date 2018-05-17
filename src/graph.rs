@@ -1,4 +1,7 @@
 use std::cmp::Ordering::Equal;
+
+use attribute::Attribute;
+use input::Topic;
 use util;
 
 #[derive(Debug)]
@@ -144,6 +147,202 @@ impl Graph {
             generated_left = gen_l,
             generated_right = gen_r
         )
+    }
+
+    pub fn gen_graphs(topics: &[Topic]) -> Vec<Graph> {
+        let xaxis_index: Option<usize> = {
+            let mut out = Option::None;
+            for (i, topic) in topics.iter().enumerate() {
+                if topic.attrs.contains(&Attribute::Xaxis) {
+                    if out.is_some() {
+                        error!("Multiple topics with xaxis attribute");
+                    } else {
+                        out = Some(i);
+                    }
+                }
+            }
+            out
+        };
+
+        let x_unit = if let Some(x_index) = xaxis_index {
+            let unit_text = format!("{} ({})", topics[x_index].name_base, topics[x_index].unit);
+            (unit_text)
+        } else {
+            "Index".to_string()
+        };
+
+        let gen_series = |data: Vec<f64>, name: String| {
+            let data = if let Some(x_index) = xaxis_index {
+                let x_data = topics[x_index].data.clone();
+                util::bind_axis(&x_data, &data)
+            } else {
+                util::fake_x_axis(&data)
+            };
+            Series { name, data }
+        };
+
+        let mut graphs: Vec<Graph> = Vec::new();
+        for i in 0..topics.len() {
+            let topic: &Topic = &topics[i];
+
+            // Handle direct
+            if !topic.attrs.contains(&Attribute::Hide) {
+                let series = gen_series(topic.data.clone(), topic.name_base.clone());
+
+                let mut graph = Graph::from_default(
+                    topic.name.clone(),
+                    topic.unit.clone(),
+                    x_unit.clone(),
+                    vec![series],
+                    false,
+                );
+
+                graph.area = topic.attrs.contains(&Attribute::Area);
+
+                graph.zero = topic.attrs.contains(&Attribute::Zero);
+
+                graphs.push(graph);
+            }
+
+            // Handle delta
+            {
+                if topic.attrs.contains(&Attribute::Delta) {
+                    let name = format!("{} Delta", topic.name);
+
+                    let (_, name_base) = util::split_name(&name);
+
+                    let unit = topic.unit.clone();
+
+                    let series = gen_series(topic.data.clone(), name_base).delta();
+
+                    let graph = Graph::from_default(name, unit, x_unit.clone(), vec![series], true);
+
+                    graphs.push(graph);
+                }
+            }
+
+            // Handle derivative
+            {
+                if topic.attrs.contains(&Attribute::Differentiate) {
+                    let name = format!("{} Derivative", topic.name);
+
+                    let (_, name_base) = util::split_name(&name);
+
+                    let mut unit = format!(
+                        "{}/{}",
+                        topic.unit,
+                        if xaxis_index.is_some() {
+                            &topics[xaxis_index.unwrap()].unit
+                        } else {
+                            "Index"
+                        }
+                    );
+
+                    let series = gen_series(topic.data.clone(), name_base).differentiate();
+
+                    let graph = Graph::from_default(name, unit, x_unit.clone(), vec![series], true);
+
+                    graphs.push(graph);
+                }
+            }
+
+            // Handle integral
+            {
+                if topic.attrs.contains(&Attribute::Integrate) {
+                    let name = format!("{} Integral", topic.name);
+
+                    let (_, name_base) = util::split_name(&name);
+
+                    let mut unit = format!(
+                        "{}*{}",
+                        topic.unit,
+                        if xaxis_index.is_some() {
+                            &topics[xaxis_index.unwrap()].unit
+                        } else {
+                            "Index"
+                        }
+                    );
+
+                    let (series, _total_sum) =
+                        gen_series(topic.data.clone(), name_base).integrate();
+
+                    let graph = Graph::from_default(name, unit, x_unit.clone(), vec![series], true);
+
+                    graphs.push(graph);
+                }
+            }
+        }
+
+        // Joins need to run after all direct graphs are added so an invalid join can be detected
+        for topic in topics {
+            // Handle join
+            for attr in &topic.attrs {
+                if let Attribute::Join(join_graph_name) = attr.clone() {
+                    let graph = {
+                        let join_graph = graphs
+                            .iter_mut()
+                            .filter(|g| g.name.eq(&join_graph_name))
+                            .last();
+                        if let Some(join_graph) = join_graph {
+                            if !join_graph.joinable {
+                                error!(
+                                    "Attempting to join to non-joinable graph {}",
+                                    join_graph.name
+                                );
+                            }
+
+                            let join_graph: &mut Graph = join_graph;
+
+                            if join_graph
+                                .series
+                                .iter()
+                                .filter(|s| s.name.eq(&topic.name_base))
+                                .count() > 0
+                            {
+                                warning!(
+                                    "Attempting to join multiple topics with same name: {}",
+                                    topic.name_base
+                                );
+                            }
+
+                            if join_graph.unit.ne(&topic.unit) {
+                                warning!(
+                                    "Attempting to join different units: {} ({}) and {} ({})",
+                                    join_graph.name,
+                                    join_graph.unit.clone(),
+                                    topic.name,
+                                    topic.unit.clone()
+                                );
+                            }
+
+                            let series = gen_series(topic.data.clone(), topic.name_base.clone());
+
+                            join_graph.series.push(series);
+
+                            Option::None
+                        } else {
+                            let name = join_graph_name;
+                            let series = gen_series(topic.data.clone(), topic.name_base.clone());
+                            let mut graph = Graph::from_default(
+                                name,
+                                topic.unit.clone(),
+                                x_unit.clone(),
+                                vec![series],
+                                true,
+                            );
+                            graph.joinable = true;
+
+                            Option::Some(graph)
+                        }
+                    };
+                    if let Some(graph) = graph {
+                        graphs.push(graph);
+                    }
+                }
+            }
+        }
+
+        graphs
     }
 }
 
