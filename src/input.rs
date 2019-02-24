@@ -219,6 +219,10 @@ impl Log {
     pub fn apply_xaxis(&mut self, xaxis: &XAxis) {
         let mut lines = Vec::with_capacity(self.data.len());
         for line in &self.data {
+            if line.1.is_empty() {
+                continue;
+            }
+
             if let Some(ref data) = xaxis.data {
                 lines.push(format!(
                     "[{} {}] {}",
