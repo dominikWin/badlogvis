@@ -124,7 +124,7 @@ fn gen_html(
         "".to_string()
     };
 
-    format!(r##"\
+    format!(r##"
 <!DOCTYPE html>
 <html lang="en">
   <head>
