@@ -3,6 +3,7 @@ use std::cmp::Ordering::Equal;
 use attribute::Attribute;
 use input::Topic;
 use util;
+use xaxis::XAxis;
 
 #[derive(Debug)]
 pub struct Graph {
@@ -22,13 +23,6 @@ pub struct Graph {
 pub struct Series {
     pub name: String,
     pub data: Vec<(f64, f64)>,
-}
-
-#[derive(Debug)]
-pub struct XAxis {
-    pub unit: String,
-    pub name: String,
-    pub data: Option<Vec<f64>>,
 }
 
 impl Graph {
@@ -159,39 +153,7 @@ impl Graph {
     }
 
     pub fn gen_graphs(topics: &[Topic]) -> (Vec<Graph>, XAxis) {
-        let xaxis: XAxis = {
-            let xaxis_index: Option<usize> = {
-                let mut out = Option::None;
-                for (i, topic) in topics.iter().enumerate() {
-                    if topic.attrs.contains(&Attribute::Xaxis) {
-                        if out.is_some() {
-                            error!("Multiple topics with xaxis attribute");
-                        } else {
-                            out = Some(i);
-                        }
-                    }
-                }
-                out
-            };
-
-            if let Some(xaxis_index) = xaxis_index {
-                let unit_text = format!(
-                    "{} ({})",
-                    topics[xaxis_index].name_base, topics[xaxis_index].unit
-                );
-                XAxis {
-                    name: unit_text,
-                    unit: topics[xaxis_index].unit.clone(),
-                    data: Option::Some(topics[xaxis_index].data.clone()),
-                }
-            } else {
-                XAxis {
-                    name: "Index".to_string(),
-                    unit: ::UNITLESS.to_string(),
-                    data: Option::None,
-                }
-            }
-        };
+        let xaxis = XAxis::from(topics);
 
         let mut graphs: Vec<Graph> = Vec::new();
         // Scope to stop borrow of xaxis by gen_series
@@ -205,9 +167,7 @@ impl Graph {
                 Series { name, data }
             };
 
-            for i in 0..topics.len() {
-                let topic: &Topic = &topics[i];
-
+            for topic in topics {
                 // Handle direct
                 if !topic.attrs.contains(&Attribute::Hide) {
                     let series = gen_series(topic.data.clone(), topic.name_base.clone());
@@ -384,40 +344,5 @@ impl Series {
             name: self.name.clone(),
             data: util::delta(&self.data),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::f64;
-    use test::Bencher;
-
-    #[bench]
-    fn bench_gen_highchart_100_000(b: &mut Bencher) {
-        let data = {
-            let mut data = Vec::with_capacity(100_000);
-            for i in 0..100_000 {
-                let point = (
-                    (i as f64) * f64::consts::PI,
-                    (i as f64) * f64::consts::PI * f64::consts::E,
-                );
-                data.push(point);
-            }
-            data
-        };
-        let series = Series {
-            name: "Series".to_string(),
-            data,
-        };
-        let graph = Graph::from_default(
-            "test".to_string(),
-            "unit".to_string(),
-            "time".to_string(),
-            vec![series],
-            false,
-        );
-
-        b.iter(|| graph.gen_highchart());
     }
 }

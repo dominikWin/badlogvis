@@ -3,7 +3,7 @@ use attribute::Attribute;
 use csv;
 use util;
 
-use graph::XAxis;
+use xaxis::XAxis;
 use Opt;
 
 use serde_json;
@@ -84,8 +84,8 @@ enum ParseMode {
     Csv,
 }
 
-impl<'a> From<&'a JSONValue> for Value {
-    fn from(value: &'a JSONValue) -> Self {
+impl From<&JSONValue> for Value {
+    fn from(value: &JSONValue) -> Self {
         let (folder, base) = util::split_name(&value.name);
         Value {
             name: value.name.clone(),
@@ -96,8 +96,8 @@ impl<'a> From<&'a JSONValue> for Value {
     }
 }
 
-impl<'a> From<&'a JSONTopic> for Topic {
-    fn from(topic: &'a JSONTopic) -> Self {
+impl From<&JSONTopic> for Topic {
+    fn from(topic: &JSONTopic) -> Self {
         let (folder, base) = util::split_name(&topic.name);
         let unit = if topic.unit.is_empty() {
             ::UNITLESS.to_string()
@@ -139,8 +139,8 @@ impl<'a> From<Topic> for Log {
     }
 }
 
-impl<'a> From<&'a (String, Vec<String>)> for Topic {
-    fn from(column: &'a (String, Vec<String>)) -> Self {
+impl From<&(String, Vec<String>)> for Topic {
+    fn from(column: &(String, Vec<String>)) -> Self {
         let (folder, base) = util::split_name(&column.0);
         let unit = ::UNITLESS.to_string();
 

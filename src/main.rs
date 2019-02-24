@@ -18,6 +18,7 @@ mod attribute;
 mod folder;
 mod graph;
 mod input;
+mod xaxis;
 
 use std::fs::File;
 use std::io::prelude::*;
