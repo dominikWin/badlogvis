@@ -83,3 +83,8 @@ There are several deriving attributes that insert a new graph with the processed
 | `delta` | Add delta graph |
 
 Note that if you don't set a `xaxis` topic then the derivative and delta will be the same.
+
+## Changelog
+
+#### 0.3:
+Add event logging support with `log` attribute.
