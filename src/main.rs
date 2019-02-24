@@ -9,6 +9,7 @@ extern crate serde_json;
 extern crate structopt;
 #[macro_use]
 extern crate structopt_derive;
+extern crate sha1;
 extern crate tempfile;
 
 #[macro_use]
@@ -67,11 +68,15 @@ fn main() {
         .clone()
         .unwrap_or_else(|| format!("{}.html", input_path));
 
-    let input = parse_input(&input_path, &opt);
+    let mut input = parse_input(&input_path, &opt);
 
-    let graphs = Graph::gen_graphs(&input.topics);
+    let (graphs, xaxis) = Graph::gen_graphs(&input.topics);
 
-    let folders: Vec<Folder> = Folder::gen_folders(graphs, input.values);
+    for log in &mut input.logs {
+        log.apply_xaxis(&xaxis);
+    }
+
+    let folders: Vec<Folder> = Folder::gen_folders(graphs, input.values, input.logs);
 
     let csv_embed = if opt.compress_csv {
         use flate2::write::GzEncoder;

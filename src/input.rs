@@ -3,6 +3,7 @@ use attribute::Attribute;
 use csv;
 use util;
 
+use graph::XAxis;
 use Opt;
 
 use serde_json;
@@ -50,6 +51,17 @@ pub struct Topic {
 }
 
 #[derive(Debug)]
+pub struct Log {
+    pub name: String,
+    pub name_base: String,
+    pub name_folder: String,
+    pub unit: String,
+    pub attrs: Vec<Attribute>,
+    pub data: Vec<(u64, String)>,
+    pub lines: Option<Vec<String>>,
+}
+
+#[derive(Debug)]
 pub struct Value {
     pub name: String,
     pub name_base: String,
@@ -60,6 +72,7 @@ pub struct Value {
 #[derive(Debug)]
 pub struct Input {
     pub topics: Vec<Topic>,
+    pub logs: Vec<Log>,
     pub values: Vec<Value>,
     pub json_header_text: Option<String>,
     pub csv_text: String,
@@ -101,6 +114,27 @@ impl<'a> From<&'a JSONTopic> for Topic {
             unit,
             attrs,
             data: Vec::new(),
+        }
+    }
+}
+
+impl<'a> From<Topic> for Log {
+    fn from(topic: Topic) -> Self {
+        let (folder, base) = util::split_name(&topic.name);
+        let unit = if topic.unit.is_empty() {
+            ::UNITLESS.to_string()
+        } else {
+            topic.unit.clone()
+        };
+
+        Log {
+            name: topic.name.clone(),
+            name_base: base,
+            name_folder: folder,
+            unit,
+            attrs: topic.attrs,
+            data: Vec::new(),
+            lines: Option::None,
         }
     }
 }
@@ -158,6 +192,44 @@ impl Topic {
             self.data.push(datapoint);
         }
     }
+
+    fn is_log(&self) -> bool {
+        if self.attrs.contains(&Attribute::Log) {
+            if self.attrs.len() > 1 {
+                error!("Too many attributes on log topic {}", self.name)
+            }
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl Log {
+    fn fill(&mut self, data: &[String], trim_doubles: bool) {
+        for (i, value) in data.iter().enumerate() {
+            let trimmed_value = if trim_doubles { value.trim() } else { value };
+
+            if trimmed_value.parse::<f64>().is_err() {
+                self.data.push((i as u64, value.to_string()));
+            }
+        }
+    }
+
+    pub fn apply_xaxis(&mut self, xaxis: &XAxis) {
+        let mut lines = Vec::with_capacity(self.data.len());
+        for line in &self.data {
+            if let Some(ref data) = xaxis.data {
+                lines.push(format!(
+                    "[{} {}] {}",
+                    data[line.0 as usize], xaxis.unit, line.1
+                ))
+            } else {
+                lines.push(format!("[{}] {}", line.0, line.1))
+            }
+        }
+        self.lines = Some(lines);
+    }
 }
 
 impl JSONTopic {
@@ -201,15 +273,23 @@ impl JSONHeader {
         values
     }
 
-    fn get_topic_shells(&self) -> Vec<Topic> {
+    fn get_stream_shells(&self) -> (Vec<Topic>, Vec<Log>) {
         let mut topics: Vec<Topic> = Vec::new();
+        let mut logs: Vec<Log> = Vec::new();
         for topic in &self.topics {
             if topics.iter().filter(|g| g.name.eq(&topic.name)).count() > 0 {
                 error!("Duplicate topic entry in JSON header for {}", &topic.name);
             }
-            topics.push(Topic::from(topic));
+
+            let topic = Topic::from(topic);
+            if topic.is_log() {
+                logs.push(Log::from(topic));
+            } else {
+                topics.push(topic);
+            }
         }
-        topics
+
+        (topics, logs)
     }
 }
 
@@ -294,8 +374,8 @@ fn parse_mid_input(input_path: &str, opt: &Opt) -> MidLevelInput {
 pub fn parse_input(input_path: &str, opt: &Opt) -> Input {
     let mid_input = parse_mid_input(input_path, opt);
 
-    let (values, topics) = if let Some(ref json_header) = mid_input.json_header {
-        let mut empty_topics = json_header.get_topic_shells();
+    let (values, topics, logs) = if let Some(ref json_header) = mid_input.json_header {
+        let (mut empty_topics, mut empty_logs) = json_header.get_stream_shells();
         for empty_topic in &mut empty_topics {
             match mid_input
                 .body
@@ -317,7 +397,29 @@ pub fn parse_input(input_path: &str, opt: &Opt) -> Input {
                 _ => error!("Multiple columns \"{}\" found in CSV", empty_topic.name),
             }
         }
-        (json_header.get_values(), empty_topics)
+
+        for empty_log in &mut empty_logs {
+            match mid_input
+                .body
+                .iter()
+                .filter(|x| (&(x.0)).eq(&(empty_log.name)))
+                .count()
+            {
+                0 => error!("Can't find topic \"{}\" in CSV", empty_log.name),
+                1 => {
+                    let data = &mid_input
+                        .body
+                        .iter()
+                        .filter(|x| (&(x.0)).eq(&(empty_log.name)))
+                        .last()
+                        .unwrap()
+                        .1;
+                    empty_log.fill(data, opt.trim_doubles);
+                }
+                _ => error!("Multiple columns \"{}\" found in CSV", empty_log.name),
+            }
+        }
+        (json_header.get_values(), empty_topics, empty_logs)
     } else {
         let topics: Vec<Topic> = mid_input
             .body
@@ -328,11 +430,12 @@ pub fn parse_input(input_path: &str, opt: &Opt) -> Input {
                 topic
             })
             .collect();
-        (Vec::new(), topics)
+        (Vec::new(), topics, Vec::new())
     };
 
     Input {
         topics,
+        logs,
         values,
         json_header_text: mid_input.json_header_text,
         csv_text: mid_input.csv_text,

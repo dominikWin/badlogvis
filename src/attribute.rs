@@ -7,6 +7,7 @@ pub enum Attribute {
     Integrate,
     Delta,
     Zero,
+    Log,
     Join(String),
 }
 
@@ -32,6 +33,9 @@ impl Attribute {
         }
         if attribute_text.eq("delta") {
             return Result::Ok(Attribute::Delta);
+        }
+        if attribute_text.eq("log") {
+            return Result::Ok(Attribute::Log);
         }
         if attribute_text.starts_with("join:") {
             let (_, right) = attribute_text.split_at(5);

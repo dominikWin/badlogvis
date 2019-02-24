@@ -100,3 +100,9 @@ pub fn integration(orig: &[(f64, f64)]) -> (Vec<(f64, f64)>, f64) {
     }
     (out, total_area)
 }
+
+pub fn hash_string(string: &str) -> String {
+    let mut m = sha1::Sha1::new();
+    m.update(string.as_bytes());
+    m.digest().to_string()
+}
