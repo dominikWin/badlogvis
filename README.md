@@ -29,7 +29,7 @@ Binary is created with `cargo build --release` or `cargo build --release --targe
 
 ## Data Types
 
-badlog has two types of data: Topics and Values.
+badlogvis supports has three types of data: Topics, Values, and Event Logs.
 
 ### Values
 
@@ -41,6 +41,10 @@ Topics are data point that changes over time.
 Each topic has a name (String), unit (String), attributes (set of Strings), and data-points (Either String or Double-precision floating-point).
 
 The units of a topic are shown in graphs of that topic and derived units are used for derived topics (So the derivative of "Amps" with an xaxis unit of "s" creates a new unit of "Amps/s").
+
+### Event Logs
+
+An event log is a standard topic with the `log` attribute. It is used for traditional event logging. These are an extension and are not native to the badlog format.
 
 ## Namespace
 
@@ -58,6 +62,7 @@ Each topic can have attributes assigned to it which change how badlogvis draws i
 
 The `hide` attribute prevents outputting a direct graph of the topic. An derivative topics are still output. If this is the only attribute the topic is not parsed at all. badlogvis does not hide data by any other attribute so it is usually used to suppress input data while still showing derived data.
 
+The `log` attribute defines a topic as an event log. It must be the only attribute on that topic. Both an empty value and any data that can be parsed as numeric is discarded. Any data kept is timestamped and added to a standard text based event log.
 
 The `area` attribute draws the output as an area graph instead of a line graph.
 
