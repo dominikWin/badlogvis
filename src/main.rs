@@ -39,8 +39,11 @@ pub struct Opt {
     #[structopt(help = "Output file, default to <input>.html")]
     output: Option<String>,
 
-    #[structopt(short = "t", long = "trim-doubles",
-                help = "Retry parsing doubles without whitespace")]
+    #[structopt(
+        short = "t",
+        long = "trim-doubles",
+        help = "Retry parsing doubles without whitespace"
+    )]
     trim_doubles: bool,
 
     #[structopt(short = "c", long = "csv", help = "Input is CSV file")]
@@ -59,7 +62,8 @@ fn main() {
     let opt: Opt = Opt::from_args();
 
     let input_path = opt.input.clone();
-    let output = opt.output
+    let output = opt
+        .output
         .clone()
         .unwrap_or_else(|| format!("{}.html", input_path));
 
@@ -70,8 +74,8 @@ fn main() {
     let folders: Vec<Folder> = Folder::gen_folders(graphs, input.values);
 
     let csv_embed = if opt.compress_csv {
-        use flate2::Compression;
         use flate2::write::GzEncoder;
+        use flate2::Compression;
         use std::io::prelude::*;
 
         let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
@@ -85,7 +89,7 @@ fn main() {
         &input_path,
         folders,
         &csv_embed,
-        input.json_header.as_ref().map(String::as_str),
+        input.json_header_text.as_ref().map(String::as_str),
     );
 
     let mut outfile = File::create(output).unwrap();

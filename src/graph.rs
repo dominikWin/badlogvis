@@ -51,7 +51,8 @@ impl Graph {
         let mut series_content = String::new();
         let mut min_y = 0f64;
         for s in &self.series {
-            let data = s.data
+            let data = s
+                .data
                 .iter()
                 .map(|p| {
                     let (x, y) = *p;
@@ -71,7 +72,8 @@ impl Graph {
 
             series_content += &series_text;
 
-            let min_y_local = s.data
+            let min_y_local = s
+                .data
                 .iter()
                 .map(|p| {
                     let (_, y) = *p;
@@ -297,7 +299,8 @@ impl Graph {
                                 .series
                                 .iter()
                                 .filter(|s| s.name.eq(&topic.name_base))
-                                .count() > 0
+                                .count()
+                                > 0
                             {
                                 warning!(
                                     "Attempting to join multiple topics with same name: {}",
