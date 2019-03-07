@@ -86,5 +86,8 @@ Note that if you don't set a `xaxis` topic then the derivative and delta will be
 
 ## Changelog
 
+#### 0.3.1:
+Allow for attaching files with the `-a`/`--attach` flag.
+
 #### 0.3:
 Add event logging support with `log` attribute.

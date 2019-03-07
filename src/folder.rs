@@ -134,7 +134,7 @@ fn gen_log_table(logs: &[Log]) -> String {
     let mut output = "<!-- Log Table -->\n".into();
 
     for log in logs {
-        let content: String = log.lines.clone().unwrap().join("<br />\n");
+        let content: String = log.lines.clone().unwrap().join("\n");
 
         let collapse_name = hash_string(&log.name);
 
@@ -142,9 +142,7 @@ fn gen_log_table(logs: &[Log]) -> String {
             <div class="panel-heading"><a data-toggle="collapse" href="#collapse_{collapse_name}">{name}</a></div>
             <div id="collapse_{collapse_name}" class="panel-collapse collapse in">
             <div class="panel-body">
-                <code>
-                    {content}
-                </code>
+                <pre>{content}</pre>
             </div>
           </div>
           </div>"##, name = log.name_base, content = content, collapse_name = collapse_name).as_ref();
