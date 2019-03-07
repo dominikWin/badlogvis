@@ -14,6 +14,7 @@ extern crate tempfile;
 
 #[macro_use]
 mod util;
+mod attatched_file;
 mod attribute;
 mod folder;
 mod graph;
@@ -25,6 +26,7 @@ use std::io::prelude::*;
 
 use structopt::StructOpt;
 
+use attatched_file::AttatchedFile;
 use folder::Folder;
 use graph::Graph;
 use input::*;
@@ -53,6 +55,13 @@ pub struct Opt {
 
     #[structopt(short = "g", long = "gzip", help = "Compress embeded CSV file")]
     compress_csv: bool,
+
+    #[structopt(
+        short = "a",
+        long = "attach",
+        help = "Include these files in the results"
+    )]
+    attatched_paths: Vec<String>,
 }
 
 enum CsvEmbed {
@@ -91,11 +100,26 @@ fn main() {
         CsvEmbed::Raw(input.csv_text)
     };
 
+    let attatched_files = {
+        let mut out = Vec::<AttatchedFile>::new();
+        for path in &opt.attatched_paths {
+            let file = AttatchedFile::from(path.as_ref());
+            if out.iter().filter(|f| &f.path == path).count() > 0 {
+                warning!("Duplicate paths found for {}", path);
+            } else if out.iter().filter(|f| &f.name == &file.name).count() > 0 {
+                warning!("Attatched two files with same base name: {}", file.name);
+            }
+            out.push(file);
+        }
+        out
+    };
+
     let out = gen_html(
         &input_path,
         folders,
         &csv_embed,
         input.json_header_text.as_ref().map(String::as_str),
+        attatched_files,
     );
 
     let mut outfile = File::create(output).unwrap();
@@ -107,6 +131,7 @@ fn gen_html(
     folders: Vec<Folder>,
     csv_embed: &CsvEmbed,
     json_header: Option<&str>,
+    attatched_files: Vec<AttatchedFile>,
 ) -> String {
     let bootstrap_css_source = include_str!("web_res/bootstrap.min.css");
     let jquery_js_source = include_str!("web_res/jquery-3.2.1.min.js");
@@ -127,6 +152,17 @@ fn gen_html(
     for folder in folders {
         content += &folder.gen_html();
     }
+
+    let attatched_file_text = if attatched_files.is_empty() {
+        "".to_string()
+    } else {
+        let mut files = "".to_string();
+        for file in &attatched_files {
+            files += &file.get_button_html();
+        }
+
+        format!("<br />\n{}", files)
+    };
 
     let json_header = if let Some(header) = json_header {
         format!(r#"<div class="well">{}</div>"#, header)
@@ -200,6 +236,7 @@ fn gen_html(
     <div class="container">
       <div class="page-header">
         <h1>{title} <a href="data:text/csv;base64,{csv_base64}" download="{csv_filename}" class="btn btn-default btn-md">Download {extention}</a></h1>
+        {attatched_files}
       </div>
 
       {content}
@@ -217,5 +254,5 @@ fn gen_html(
             exporting_js = highcharts_exporting_js_source,
             offline_exporting_js = highcharts_offline_exporting_source,
             extention = extention.to_string().to_uppercase(),
-            badlogvis_version = VERSION, json_header = json_header)
+            badlogvis_version = VERSION, json_header = json_header, attatched_files = attatched_file_text)
 }
