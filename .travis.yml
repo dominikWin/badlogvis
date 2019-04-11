@@ -1,0 +1,15 @@
+language: rust
+os: osx
+if: tag IS present
+install: cargo install --force --path .
+script: true
+cache: cargo
+before_deploy: cargo build --release --target=x86_64-apple-darwin && mv target/release/badlogvis target/release/badlogvis-x86_64-apple-darwin
+deploy:
+  provider: releases
+  api_key: $GH_TOKEN
+  file: target/release/badlogvis-x86_64-apple-darwin
+  file_glob: true
+  skip_cleanup: true
+  on:
+    tags: true
