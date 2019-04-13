@@ -1,0 +1,24 @@
+language: rust
+matrix:
+  include:
+    - os: osx
+      env: TARGET=x86_64-apple-darwin
+    - os: linux
+      dist: xenial
+      env: TARGET=x86_64-unknown-linux-gnu WIN=x86_64-pc-windows-gnu
+
+if: tag IS present
+install: cargo install --force --path .
+script: true
+cache: cargo
+before_deploy:
+  - cargo build --release --target=$TARGET && mv target/release/badlogvis target/release/badlogvis-$TARGET
+  - if [ -z "$WIN" ]; then cargo build --release --target=$WIN && mv target/release/badlogvis target/release/$WIN/badlogvis-$WIN; fi
+deploy:
+  provider: releases
+  api_key: $GH_TOKEN
+  file: target/release/**/badlogvis-*
+  file_glob: true
+  skip_cleanup: true
+  on:
+    tags: true
