@@ -86,6 +86,9 @@ Note that if you don't set a `xaxis` topic then the derivative and delta will be
 
 ## Changelog
 
+#### 0.3.2:
+Add automated TravisCI builds for Windows/OSX/Linux.
+
 #### 0.3.1:
 Allow for attaching files with the `-a`/`--attach` flag.
 
