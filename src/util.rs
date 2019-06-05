@@ -19,8 +19,10 @@ macro_rules! error {
 
 macro_rules! warning {
     ($fmt:expr) => {
-        use colored::*;
-        println!(concat!("{}: ", $fmt), if cfg!(windows) { "warning".normal() } else { "warning".bold().yellow() });
+        {
+            use colored::*;
+            println!(concat!("{}: ", $fmt), if cfg!(windows) { "warning".normal() } else { "warning".bold().yellow() });
+        }
     };
     ($fmt:expr, $($arg:tt)*) => {
         use colored::*;

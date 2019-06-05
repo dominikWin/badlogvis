@@ -138,7 +138,7 @@ fn main() {
     if opt.open_in_browser {
         match open::that(output_path) {
             Ok(_) => (),
-            Err(_) => eprintln!("There was an error opening the browser."),
+            Err(_) => warning!("There was an error opening the browser."),
         }
     }
 }
