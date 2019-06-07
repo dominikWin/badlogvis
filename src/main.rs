@@ -11,6 +11,7 @@ extern crate structopt;
 extern crate structopt_derive;
 extern crate sha1;
 extern crate tempfile;
+extern crate open;
 
 #[macro_use]
 mod util;
@@ -62,6 +63,13 @@ pub struct Opt {
         help = "Include these files in the results"
     )]
     attatched_paths: Vec<String>,
+
+    #[structopt(
+        short = "o",
+        long = "open",
+        help = "Open resulting HTML in default browser"
+    )]
+    open_in_browser: bool,
 }
 
 enum CsvEmbed {
@@ -122,8 +130,17 @@ fn main() {
         attatched_files,
     );
 
+    let output_path = output.clone();
+
     let mut outfile = File::create(output).unwrap();
     outfile.write_all(out.as_bytes()).unwrap();
+
+    if opt.open_in_browser {
+        match open::that(output_path) {
+            Ok(_) => (),
+            Err(_) => warning!("There was an error opening the browser."),
+        }
+    }
 }
 
 fn gen_html(
