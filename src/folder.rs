@@ -90,22 +90,18 @@ impl Folder {
 
         format!(
             r##"
-  <div class="panel-group">
-    <div class="panel panel-default">
-      <div class="panel-heading">
-        <h4 class="panel-title">
-          <a data-toggle="collapse" href="#collapse_{collapse_name}">{name}</a>
-        </h4>
-      </div>
-      <div id="collapse_{collapse_name}" class="panel-collapse collapse">
-        <div class="panel-body">
-          {table}
-          {log_table}
-          {graphs}
-        </div>
-      </div>
+<details class="panel">
+  <summary class="panel-heading">
+    <h4 class="panel-title">{name}</h4>
+  </summary>
+  <div id="collapse_{collapse_name}" class="panel-collapse collapse">
+    <div class="panel-body">
+        {table}
+        {log_table}
+        {graphs}
     </div>
-  </div>"##,
+  </div>
+</details>"##,
             name = self.name,
             table = table,
             graphs = graph_content,

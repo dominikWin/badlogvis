@@ -150,13 +150,12 @@ fn gen_html(
     json_header: Option<&str>,
     attatched_files: Vec<AttatchedFile>,
 ) -> String {
-    let bootstrap_css_source = include_str!("web_res/bootstrap.min.css");
     let jquery_js_source = include_str!("web_res/jquery-3.2.1.min.js");
-    let bootstrap_js_source = include_str!("web_res/bootstrap.min.js");
     let highcharts_js_source = include_str!("web_res/highcharts.js");
     let highcharts_boost_js_source = include_str!("web_res/boost.js");
     let highcharts_exporting_js_source = include_str!("web_res/exporting.js");
     let highcharts_offline_exporting_source = include_str!("web_res/offline-exporting.js");
+    let badlogvis_css_source = include_str!("web_res/badlogvis.css");
 
     let (csv_base64, extention) = match csv_embed {
         CsvEmbed::Raw(ref csv_raw) => (base64::encode(csv_raw), "csv"),
@@ -182,7 +181,7 @@ fn gen_html(
     };
 
     let json_header = if let Some(header) = json_header {
-        format!(r#"<div class="well">{}</div>"#, header)
+        format!(r#"<pre class="well">{}</pre>"#, header)
     } else {
         "".to_string()
     };
@@ -195,19 +194,13 @@ fn gen_html(
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>BadLog - {title}</title>
 
-    <!-- bootstrap.min.css -->
-    <style type="text/css">
-        {bootstrap_css}
+    <style>
+        {badlogvis_css}
     </style>
 
     <!-- jquery-3.2.1.min.js -->
     <script>
         {jquery_js}
-    </script>
-
-    <!-- bootstrap.min.js -->
-    <script>
-        {bootstrap_js}
     </script>
 
     <!-- highcharts.js -->
@@ -250,22 +243,27 @@ fn gen_html(
   </head>
 
   <body>
-    <div class="container">
-      <div class="page-header">
-        <h1>{title} <a href="data:text/csv;base64,{csv_base64}" download="{csv_filename}" class="btn btn-default btn-md">Download {extention}</a></h1>
+    <main class="container">
+      <header class="page-header">
+        <h1>{title} <a href="data:text/csv;base64,{csv_base64}" download="{csv_filename}" class="btn">Download {extention}</a></h1>
         {attatched_files}
-      </div>
+        <label><input type="checkbox" oninput="document.body.classList.toggle('dark')" /> Dark Mode</label>
+      </header>
 
       {content}
 
-      <a style="color: grey; text-decoration: underline;" data-toggle="collapse" href="#metadata" aria-expanded="false" aria-controls="metadata">Info</a>
+      <footer>
+        <details>
+          <summary style="color: grey;">Info</summary>
       <div class="collapse" id="metadata">
         {json_header}
         <p>badlogvis {badlogvis_version}</p>
       </div>
-    </div> <!-- /container -->
+        </details>
+      </footer>
+    </main> <!-- /container -->
   </body>
-</html>"##, title = input, bootstrap_css = bootstrap_css_source, jquery_js = jquery_js_source, bootstrap_js = bootstrap_js_source,
+</html>"##, title = input, jquery_js = jquery_js_source, badlogvis_css = badlogvis_css_source,
             highcharts_js = highcharts_js_source, boost_js = highcharts_boost_js_source,
             content = content, csv_base64 = csv_base64, csv_filename = csv_filename,
             exporting_js = highcharts_exporting_js_source,
