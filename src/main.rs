@@ -12,6 +12,7 @@ extern crate structopt_derive;
 extern crate sha1;
 extern crate tempfile;
 extern crate open;
+extern crate html_minifier;
 
 #[macro_use]
 mod util;
@@ -31,6 +32,7 @@ use attatched_file::AttatchedFile;
 use folder::Folder;
 use graph::Graph;
 use input::*;
+use html_minifier::HTMLMinifier;
 
 pub const UNITLESS: &str = "ul";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -122,13 +124,19 @@ fn main() {
         out
     };
 
-    let out = gen_html(
-        &input_path,
-        folders,
-        &csv_embed,
-        input.json_header_text.as_ref().map(String::as_str),
-        attatched_files,
-    );
+    let mut minifier = HTMLMinifier::new();
+
+    minifier.digest(
+        gen_html(
+            &input_path,
+            folders,
+            &csv_embed,
+            input.json_header_text.as_ref().map(String::as_str),
+            attatched_files,
+        )
+    ).unwrap();
+
+    let out = minifier.get_html();
 
     let output_path = output.clone();
 
@@ -255,10 +263,10 @@ fn gen_html(
       <footer>
         <details>
           <summary style="color: grey;">Info</summary>
-      <div class="collapse" id="metadata">
-        {json_header}
-        <p>badlogvis {badlogvis_version}</p>
-      </div>
+          <div class="collapse" id="metadata">
+            {json_header}
+            <p>badlogvis {badlogvis_version}</p>
+          </div>
         </details>
       </footer>
     </main> <!-- /container -->
