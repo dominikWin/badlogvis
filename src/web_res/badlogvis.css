@@ -108,7 +108,7 @@ body.dark input[type="checkbox"] {
   cursor: pointer;
 }
 
-.panel[open] .panel-heading {
+.panel[open] > .panel-heading {
   border-radius: 8px 8px 0 0;
   border-color: var(--gray-300);
 }
