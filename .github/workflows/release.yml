@@ -18,7 +18,7 @@ jobs:
         with:
           toolchain: beta
           default: true
-          target: $ARM # This is in addition to the native target
+          target: ${{ env.ARM }} # This is in addition to the native target
           profile: minimal
       - name: Build for x86_64-apple-darwin
         uses: actions-rs/cargo@v1
@@ -29,12 +29,12 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --target $ARM
+          args: --release --target ${{ env.ARM }}
       - name: Rename binaries
         id: rename_binaries
         run: |
-          mv target/release/badlogvis target/release/badlogvis-$TARGET
-          mv target/$ARM/release/badlogvis target/release/badlogvis-$ARM
+          mv target/release/badlogvis target/release/badlogvis-${{ env.TARGET }}
+          mv target/${{ env.ARM }}/release/badlogvis target/release/badlogvis-${{ env.ARM }}
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
