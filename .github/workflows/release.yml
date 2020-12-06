@@ -35,34 +35,54 @@ jobs:
         run: |
           mv target/release/badlogvis target/release/badlogvis-${{ env.TARGET }}
           mv target/${{ env.ARM }}/release/badlogvis target/release/badlogvis-${{ env.ARM }}
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Publish release with binaries
+        id: publish_release
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         with:
           tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          release_name: badlogvis ${{ github.ref }}
           draft: false
           prerelease: false
-      - name: Upload x86_64 binary
-        id: upload_x86_64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            ./target/release/badlogvis-*
+  build-linux:
+    name: Build for Linux and Windows
+    runs-on: ubuntu-latest
+    env:
+      TARGET: x86_64-unknown-linux-gnu
+      WIN: x86_64-pc-windows-gnu
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust beta
+        uses: actions-rs/toolchain@v1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
-          asset_path: ./target/release/badlogvis-${{ env.TARGET }}
-          asset_name: badlogvis-${{ env.TARGET }}
-          asset_content_type: application/octet-stream
-      - name: Upload aarch64 binary
-        id: upload_aarch64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          toolchain: beta
+          default: true
+          target: ${{ env.WIN }} # This is in addition to the native target
+          profile: minimal
+      - name: Build for x86_64-unknown-linux-gnu
+        uses: actions-rs/cargo@v1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
-          asset_path: ./target/release/badlogvis-${{ env.ARM }}
-          asset_name: badlogvis-${{ env.ARM }}
-          asset_content_type: application/octet-stream
+          command: build
+          args: --release
+      - name: Build for x86_64-pc-windows-gnu
+        id: build_windows
+        run: .ci/cross-build.sh
+      - name: Rename binaries
+        id: rename_binaries
+        run: mv target/release/badlogvis target/release/badlogvis-${{ env.TARGET }}
+      - name: Publish release with binaries
+        id: publish_release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: badlogvis ${{ github.ref }}
+          draft: false
+          prerelease: false
+          files: |
+            ./target/release/badlogvis-*
 
