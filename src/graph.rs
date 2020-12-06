@@ -212,7 +212,7 @@ impl Graph {
 
                         let (_, name_base) = util::split_name(&name);
 
-                        let mut unit = format!("{}/{}", topic.unit, xaxis.unit);
+                        let unit = format!("{}/{}", topic.unit, xaxis.unit);
 
                         let series = gen_series(topic.data.clone(), name_base).differentiate();
 
@@ -230,7 +230,7 @@ impl Graph {
 
                         let (_, name_base) = util::split_name(&name);
 
-                        let mut unit = format!("{}*{}", topic.unit, xaxis.unit);
+                        let unit = format!("{}*{}", topic.unit, xaxis.unit);
 
                         let (series, _total_sum) =
                             gen_series(topic.data.clone(), name_base).integrate();
