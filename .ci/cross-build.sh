@@ -10,6 +10,6 @@ if [[ -n "$ARM" ]]; then
   rustup target add $ARM &&
   SDKROOT=$(xcrun -sdk macosx11.0 --show-sdk-path) \
   MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx11.0 --show-sdk-platform-version) \
-  cargo build --target=$ARM &&
+  cargo build --release --target=$ARM &&
   mv target/$ARM/release/badlogvis target/$ARM/release/badlogvis-$ARM
 fi
