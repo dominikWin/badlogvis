@@ -1,4 +1,4 @@
-# badlogvis [![Build Status](https://travis-ci.org/dominikWin/badlogvis.svg)](https://travis-ci.org/dominikWin/badlogvis)
+# badlogvis [![Build Status](https://github.com/dominikWin/badlogvis/workflows/Build%20Release/badge.svg)](https://github.com/dominikWin/badlogvis/actions)
 
 `badlogvis` is a data log visualization tool that parses badlog bag files or CSV and outputs a single self-contained HTML file.
 
