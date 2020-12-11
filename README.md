@@ -86,6 +86,9 @@ Note that if you don't set a `xaxis` topic then the derivative and delta will be
 
 ## Changelog
 
+#### 0.3.4
+Add builds for macOS ARM.
+
 #### 0.3.3:
 Add open in browser flag `-o`/`--open`.
 
