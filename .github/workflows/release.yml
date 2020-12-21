@@ -32,11 +32,9 @@ jobs:
         with:
           command: build
           args: --release --target ${{ env.ARM }}
-      - name: Rename binaries
-        id: rename_binaries
-        run: |
-          mv target/release/badlogvis target/release/badlogvis-${{ env.TARGET }}
-          mv target/${{ env.ARM }}/release/badlogvis target/release/badlogvis-${{ env.ARM }}
+      - name: Package binaries
+        id: package_binaries
+        run: .ci/package.sh
       - name: Publish release with binaries
         id: publish_release
         uses: softprops/action-gh-release@v1
@@ -48,7 +46,7 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            ./target/release/badlogvis-*
+            ./out/badlogvis-*.tar.gz
   build-linux:
     name: Build for Linux and Windows
     runs-on: ubuntu-latest
@@ -74,9 +72,9 @@ jobs:
       - name: Build for x86_64-pc-windows-gnu
         id: build_windows
         run: .ci/cross-build.sh
-      - name: Rename binaries
-        id: rename_binaries
-        run: mv target/release/badlogvis target/release/badlogvis-${{ env.TARGET }}
+      - name: Package binaries
+        id: package_binaries
+        run: .ci/package.sh
       - name: Publish release with binaries
         id: publish_release
         uses: softprops/action-gh-release@v1
@@ -88,5 +86,7 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            ./target/release/badlogvis-*
+            ./target/release/badlogvis-${{ env.WIN }}.exe
+            ./out/badlogvis-*.tar.gz
+
 
