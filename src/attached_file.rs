@@ -1,13 +1,13 @@
 use std::fs;
 use std::path::Path;
 
-pub struct AttatchedFile {
+pub struct AttachedFile {
     pub path: String,
     pub name: String,
     content: Vec<u8>,
 }
 
-impl From<&str> for AttatchedFile {
+impl From<&str> for AttachedFile {
     fn from(path: &str) -> Self {
         let content = fs::read(path);
 
@@ -23,7 +23,7 @@ impl From<&str> for AttatchedFile {
             .unwrap()
             .to_string();
 
-        AttatchedFile {
+        AttachedFile {
             content,
             name,
             path: path.to_string(),
@@ -31,7 +31,7 @@ impl From<&str> for AttatchedFile {
     }
 }
 
-impl AttatchedFile {
+impl AttachedFile {
     pub fn get_button_html(&self) -> String {
         let data = base64::encode(&self.content);
 
