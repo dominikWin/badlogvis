@@ -3,6 +3,7 @@ on:
   push:
     tags:
       - 'v*'
+  pull_request:
 
 jobs:
   build:
@@ -12,7 +13,7 @@ jobs:
           - os: macos-11.0
             TARGET: x86_64-apple-darwin
             SECONDARY: aarch64-apple-darwin
-          - os: ubuntu-latest
+          - os: ubuntu-20.04
             TARGET: x86_64-unknown-linux-gnu
             SECONDARY: x86_64-pc-windows-gnu
     name: Build (${{ matrix.os }})
@@ -34,7 +35,7 @@ jobs:
           command: build
           args: --release
       - name: Install Windows linker
-        if: matrix.os == 'ubuntu-latest'
+        if: ${{ startsWith(matrix.os, 'ubuntu') }}
         run: |
           sudo apt-get install gcc-mingw-w64 &&
           printf "[x86_64-pc-windows-gnu]\nlinker = \"x86_64-w64-mingw32-gcc\"" >> ~/.cargo/config
@@ -50,6 +51,7 @@ jobs:
           SECONDARY: ${{ matrix.SECONDARY }}
         run: .ci/package.sh
       - name: Publish release with binaries
+        if: ${{ github.event_name != 'pull_request' }}
         id: publish_release
         uses: softprops/action-gh-release@v1
         env:
