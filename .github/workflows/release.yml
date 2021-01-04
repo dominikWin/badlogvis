@@ -3,39 +3,55 @@ on:
   push:
     tags:
       - 'v*'
+  pull_request:
 
 jobs:
-  build-macos:
-    name: Build for macOS
-    runs-on: macos-11.0
-    env:
-      TARGET: x86_64-apple-darwin
-      ARM: aarch64-apple-darwin
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-11.0
+            TARGET: x86_64-apple-darwin
+            SECONDARY: aarch64-apple-darwin
+          - os: ubuntu-20.04
+            TARGET: x86_64-unknown-linux-gnu
+            SECONDARY: x86_64-pc-windows-gnu
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
       - name: Set Release Version
         run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-      - name: Install Rust beta
+      - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: beta
+          toolchain: stable
           default: true
-          target: ${{ env.ARM }} # This is in addition to the native target
+          target: ${{ matrix.SECONDARY }} # This is in addition to the native target
           profile: minimal
-      - name: Build for x86_64-apple-darwin
+      - name: Build for ${{ matrix.TARGET }}
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release
-      - name: Build for aarch64-apple-darwin
+      - name: Install Windows linker
+        if: ${{ startsWith(matrix.os, 'ubuntu') }}
+        run: |
+          sudo apt-get install gcc-mingw-w64 &&
+          printf "[x86_64-pc-windows-gnu]\nlinker = \"x86_64-w64-mingw32-gcc\"" >> ~/.cargo/config
+      - name: Build for ${{ matrix.SECONDARY }}
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --target ${{ env.ARM }}
+          args: --release --target ${{ matrix.SECONDARY }}
       - name: Package binaries
         id: package_binaries
+        env:
+          TARGET: ${{ matrix.TARGET }}
+          SECONDARY: ${{ matrix.SECONDARY }}
         run: .ci/package.sh
       - name: Publish release with binaries
+        if: ${{ github.event_name != 'pull_request' }}
         id: publish_release
         uses: softprops/action-gh-release@v1
         env:
@@ -47,46 +63,6 @@ jobs:
           prerelease: false
           files: |
             ./out/badlogvis-*.tar.gz
-  build-linux:
-    name: Build for Linux and Windows
-    runs-on: ubuntu-latest
-    env:
-      TARGET: x86_64-unknown-linux-gnu
-      WIN: x86_64-pc-windows-gnu
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set Release Version
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-      - name: Install Rust beta
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: beta
-          default: true
-          target: ${{ env.WIN }} # This is in addition to the native target
-          profile: minimal
-      - name: Build for x86_64-unknown-linux-gnu
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release
-      - name: Build for x86_64-pc-windows-gnu
-        id: build_windows
-        run: .ci/cross-build.sh
-      - name: Package binaries
-        id: package_binaries
-        run: .ci/package.sh
-      - name: Publish release with binaries
-        id: publish_release
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
-        with:
-          tag_name: ${{ env.RELEASE_VERSION }}
-          name: badlogvis ${{ env.RELEASE_VERSION }}
-          draft: false
-          prerelease: false
-          files: |
-            ./target/release/badlogvis-${{ env.WIN }}.exe
-            ./out/badlogvis-*.tar.gz
+            ./out/badlogvis-*.zip
 
 

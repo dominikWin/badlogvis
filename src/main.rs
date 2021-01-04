@@ -15,7 +15,7 @@ extern crate open;
 
 #[macro_use]
 mod util;
-mod attatched_file;
+mod attached_file;
 mod attribute;
 mod folder;
 mod graph;
@@ -27,7 +27,7 @@ use std::io::prelude::*;
 
 use structopt::StructOpt;
 
-use attatched_file::AttatchedFile;
+use attached_file::AttachedFile;
 use folder::Folder;
 use graph::Graph;
 use input::*;
@@ -109,9 +109,9 @@ fn main() {
     };
 
     let attatched_files = {
-        let mut out = Vec::<AttatchedFile>::new();
+        let mut out = Vec::<AttachedFile>::new();
         for path in &opt.attatched_paths {
-            let file = AttatchedFile::from(path.as_ref());
+            let file = AttachedFile::from(path.as_ref());
             if out.iter().filter(|f| &f.path == path).count() > 0 {
                 warning!("Duplicate paths found for {}", path);
             } else if out.iter().filter(|f| &f.name == &file.name).count() > 0 {
@@ -148,7 +148,7 @@ fn gen_html(
     folders: Vec<Folder>,
     csv_embed: &CsvEmbed,
     json_header: Option<&str>,
-    attatched_files: Vec<AttatchedFile>,
+    attatched_files: Vec<AttachedFile>,
 ) -> String {
     let bootstrap_css_source = include_str!("web_res/bootstrap.min.css");
     let jquery_js_source = include_str!("web_res/jquery-3.2.1.min.js");
