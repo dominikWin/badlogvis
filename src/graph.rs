@@ -73,15 +73,21 @@ impl Graph {
 
             series_content += &series_text;
 
-            let min_y_local = s
+            let min_y_local_option = s
                 .data
                 .iter()
                 .map(|p| {
                     let (_, y) = *p;
                     y
                 })
-                .min_by(|a, b| a.partial_cmp(b).unwrap_or(Equal))
-                .unwrap();
+                .min_by(|a, b| a.partial_cmp(b).unwrap_or(Equal));
+
+            let min_y_local = match min_y_local_option {
+                Some(value) => value,
+                None => {
+                    error!("No data points found in bag file! Robot code may have ended early.")
+                }
+            };
 
             if min_y_local < min_y {
                 min_y = min_y_local;
