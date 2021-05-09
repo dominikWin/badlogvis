@@ -1,6 +1,8 @@
 # badlogvis [![Build Status](https://github.com/dominikWin/badlogvis/workflows/Build%20Release/badge.svg)](https://github.com/dominikWin/badlogvis/actions)
 
-`badlogvis` is a data log visualization tool that parses badlog bag files or CSV and outputs a single self-contained HTML file.
+`badlogvis` is a data log visualization tool that parses badlog bag files (which are just CSVs with some metadata) or CSV and outputs a single self-contained HTML file.
+
+It is indented to be used on files created with [badlog](https://github.com/dominikWin/badlog).
 
 ## Usage
 
@@ -85,6 +87,9 @@ There are several deriving attributes that insert a new graph with the processed
 Note that if you don't set a `xaxis` topic then the derivative and delta will be the same.
 
 ## Changelog
+
+#### 0.3.5
+Graceful handling of empty data files.
 
 #### 0.3.4
 Add builds for macOS ARM.

@@ -1,6 +1,6 @@
 [package]
 name = "badlogvis"
-version = "0.3.4"
+version = "0.3.5"
 authors = ["Dominik Winecki <dominikwinecki@gmail.com>"]
 readme = "README.md"
 
